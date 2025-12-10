@@ -134,8 +134,8 @@ export function runStealthChecks(workbook) {
   const deduction = Math.min(5, failures);
   if (deduction > 0) {
     feedback.push(format(STRINGS.stealth.deduction, deduction));
-    return { delta: -deduction, feedback };
   }
 
+  // Stealth feedback is advisory; geometry deductions are handled in attachments.
   return { delta: 0, feedback };
 }

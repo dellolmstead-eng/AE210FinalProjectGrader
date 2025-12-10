@@ -6,6 +6,8 @@ const MACH_TOL = 1e-2;
 const VALUE_TOL = 1e-3;
 const PS_TOL = 1;
 const CDX_TOL = 1e-3;
+const PAYLOAD_INT_TOL = 0.01;
+const RADIUS_TOL = 0.05;
 const BETA_DEFAULT = 0.87620980519917;
 const CURVE_LABEL_MAP = {
   MaxMach: "MaxMach",
@@ -175,41 +177,54 @@ export function runConstraintChecks(workbook) {
 
   const radius = asNumber(getCell(main, "Y37"));
   if (Number.isFinite(radius)) {
-    if (radius < 375) {
+    if (radius < 375 - RADIUS_TOL) {
       feedback.push(format(STRINGS.constraint.radiusLow, radius));
       tableErrors += 1;
-    } else if (radius >= 410) {
+    } else if (radius >= 410 - RADIUS_TOL) {
       feedback.push(format(STRINGS.constraint.radiusObj, radius));
     }
   }
 
-  const aim120 = asNumber(getCell(main, "AB3"));
-  const aim9 = asNumber(getCell(main, "AB4"));
-  if (!Number.isFinite(aim120) || aim120 < 8) {
-    const value = Number.isFinite(aim120) ? aim120 : 0;
+  const aim120Raw = asNumber(getCell(main, "AB3"));
+  const aim9Raw = asNumber(getCell(main, "AB4"));
+  const aim120Int =
+    Number.isFinite(aim120Raw) && Math.abs(aim120Raw - Math.round(aim120Raw)) <= PAYLOAD_INT_TOL
+      ? Math.round(aim120Raw)
+      : null;
+  const aim9Int =
+    Number.isFinite(aim9Raw) && Math.abs(aim9Raw - Math.round(aim9Raw)) <= PAYLOAD_INT_TOL
+      ? Math.round(aim9Raw)
+      : null;
+  if (aim120Int == null || aim9Int == null) {
+    const invalidMsg =
+      STRINGS.constraint.payloadPenaltyInvalid || "Payload counts for AIM-120 and AIM-9 must be integers.";
+    feedback.push(invalidMsg);
     payloadPenalty -= 4;
-    feedback.push(format(STRINGS.constraint.payloadPenalty, value));
-  } else if (Number.isFinite(aim9) && aim9 >= 2) {
-    feedback.push(format(STRINGS.constraint.payloadObj, aim120, aim9));
+  } else if (aim120Int < 8) {
+    payloadPenalty -= 4;
+    feedback.push(format(STRINGS.constraint.payloadPenalty, aim120Int));
+  } else if (aim9Int >= 2) {
+    feedback.push(format(STRINGS.constraint.payloadObj, aim120Int, aim9Int));
   }
 
+  const distanceObjectives = [];
   const takeoffDist = asNumber(getCell(main, "X12"));
   if (Number.isFinite(takeoffDist)) {
-    if (takeoffDist > 3000) {
+    if (takeoffDist > 3000 + RADIUS_TOL) {
       feedback.push(format(STRINGS.constraint.takeoffHigh, takeoffDist));
       tableErrors += 1;
-    } else if (takeoffDist <= 2500) {
-      feedback.push(format(STRINGS.constraint.takeoffObj, takeoffDist));
+    } else if (takeoffDist <= 2500 + RADIUS_TOL) {
+      distanceObjectives.push({ label: "Takeoff", text: format(STRINGS.constraint.takeoffObj, takeoffDist) });
     }
   }
 
   const landingDist = asNumber(getCell(main, "X13"));
   if (Number.isFinite(landingDist)) {
-    if (landingDist > 5000) {
+    if (landingDist > 5000 + RADIUS_TOL) {
       feedback.push(format(STRINGS.constraint.landingHigh, landingDist));
       tableErrors += 1;
-    } else if (landingDist <= 3500) {
-      feedback.push(format(STRINGS.constraint.landingObj, landingDist));
+    } else if (landingDist <= 3500 + RADIUS_TOL) {
+      distanceObjectives.push({ label: "Landing", text: format(STRINGS.constraint.landingObj, landingDist) });
     }
   }
 
@@ -371,6 +386,14 @@ export function runConstraintChecks(workbook) {
   } catch (err) {
     feedback.push(format(STRINGS.constraint.curveError, err.message));
   }
+
+  // Distance objectives only if the corresponding curve passed
+  distanceObjectives.forEach(({ label, text }) => {
+    const curveLabel = CURVE_LABEL_MAP[label] || label;
+    if (curveStatus[curveLabel] !== false) {
+      feedback.push(text);
+    }
+  });
 
   objectiveLabels.forEach((label) => {
     const curveLabel = CURVE_LABEL_MAP[label] || label;

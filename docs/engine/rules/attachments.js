@@ -172,7 +172,7 @@ export function runAttachmentChecks(workbook) {
     controlFailures += 1;
   }
 
-  const allowedOverhang = Number.isFinite(maxWidth) ? 2 * maxWidth : Number.NaN;
+  const allowedOverhang = Number.isFinite(maxWidth) ? 2.5 * maxWidth : Number.NaN;
   if (!Number.isFinite(allowedOverhang)) {
     feedback.push("Unable to compute fuselage width limit for aft overhang checks");
     controlFailures += 1;

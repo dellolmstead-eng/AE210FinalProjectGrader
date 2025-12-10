@@ -2,9 +2,9 @@ import { STRINGS } from "../messages.js";
 import { getCell, asNumber } from "../parseUtils.js";
 import { format } from "../format.js";
 
-const PERCENT_TOL = 1e-3;
-const ANGLE_TOL = 1e-2;
-const SPEED_TOL = 1e-3;
+const PERCENT_TOL = 0.5; // percent span (matches MATLAB GE3 logic)
+const ANGLE_TOL = 0.1;
+const SPEED_TOL = 0.5;
 
 export function runLandingGearChecks(workbook) {
   const feedback = [];
@@ -12,8 +12,8 @@ export function runLandingGearChecks(workbook) {
 
   const gear = workbook.sheets.gear;
 
-  const noseRule = asNumber(getCell(gear, "J20"));
-  if (!Number.isFinite(noseRule) || noseRule < 80 - PERCENT_TOL || noseRule > 95 + PERCENT_TOL) {
+  const noseRule = asNumber(getCell(gear, "J19"));
+  if (!Number.isFinite(noseRule) || noseRule < 10 - PERCENT_TOL || noseRule > 20 + PERCENT_TOL) {
     feedback.push(format(STRINGS.gear.nose, noseRule));
     failures += 1;
   }
@@ -44,6 +44,10 @@ export function runLandingGearChecks(workbook) {
   if (!Number.isFinite(rotationSpeed) || rotationSpeed >= 200 - SPEED_TOL) {
     feedback.push(format(STRINGS.gear.rotation, rotationSpeed));
     failures += 1;
+  }
+  if (!Number.isFinite(rotationSpeed) || rotationSpeed >= 200 - SPEED_TOL) {
+    // Advisory echo (mirrors GE3 behavior)
+    feedback.push(format(STRINGS.gear.takeoffSpeed, rotationSpeed));
   }
 
   if (failures > 0) {

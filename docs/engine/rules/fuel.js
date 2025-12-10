@@ -9,14 +9,8 @@ export function runFuelVolumeChecks(workbook) {
   const main = workbook.sheets.main;
   const fuelAvailable = asNumber(getCell(main, "O18"));
   const fuelRequired = asNumber(getCell(main, "X40"));
-  if (
-    !Number.isFinite(fuelAvailable) ||
-    !Number.isFinite(fuelRequired) ||
-    fuelAvailable < fuelRequired
-  ) {
-    const availableDisplay = Number.isFinite(fuelAvailable) ? fuelAvailable : NaN;
-    const requiredDisplay = Number.isFinite(fuelRequired) ? fuelRequired : NaN;
-    feedback.push(format(STRINGS.fuel.shortage, availableDisplay, requiredDisplay));
+  if (Number.isFinite(fuelAvailable) && Number.isFinite(fuelRequired) && fuelAvailable < fuelRequired) {
+    feedback.push(format(STRINGS.fuel.shortage, fuelAvailable, fuelRequired));
     delta -= 2;
   }
 

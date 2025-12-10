@@ -9,6 +9,8 @@
 % This script automates grading for the AE210 Final Project by processing Jet11 Excel files (*.xlsm). It evaluates 
 % multiple design criteria, generates detailed feedback, and outputs both a
 % summary log and an optional Blackboard-compatible grade import file.
+% Sometimes the parallel pool requires 2 runs to start correctly. Just stop
+% the run and restart if it freezes for more than 30 seconds.
 %
 % Key Features:
 % - Supports both single-file and batch-folder grading via GUI
@@ -38,7 +40,7 @@
 %
 % Author: Lt Col Dell Olmstead, based on work by Capt Carol Bryant and Capt Anna Mason
 % Heavy ChatGPT CODEX help in Nov 2025
-% Last Updated: 4 Nov 2025
+% Last Updated: 09 Dec 2025 23:09
 %--------------------------------------------------------------------------
 clear; close all; clc;
 
@@ -116,20 +118,25 @@ if strcmp(mode, 'folder')
     
 parfor cadetIdx = 1:numel(files)
     filename = fullfile(folderAnalyzed, files(cadetIdx).name);
+    fprintf('Grading %s\n', files(cadetIdx).name);
     try
         [pt, fb] = gradeCadet(filename);
         points(cadetIdx) = pt;
         feedback{cadetIdx} = fb;
+        fprintf('Finished %s\n', files(cadetIdx).name);
     catch
         points(cadetIdx) = NaN;
         feedback{cadetIdx} = sprintf('Error reading or grading file: %s', files(cadetIdx).name);
+        fprintf('Error grading %s: %s\n', files(cadetIdx).name, feedback{cadetIdx});
     end
 end
 
 else %       %%% Use the below code to run a single cadet
 
     filename = fullfile(folderAnalyzed, files(1).name);
+    fprintf('Grading %s\n', files(1).name);
     [points, feedback{1}] = gradeCadet(filename);
+    fprintf('Finished %s\n', files(1).name);
 
 end
 
@@ -151,7 +158,8 @@ end
 fprintf(finalout, '\n');
 
 %% Concatenate all outputs into one text file and write it.
-allLogText = strjoin(string(feedback(:)), '\n\n');
+fbCells = cellfun(@(x) strtrim(string(x)), feedback, 'UniformOutput', false);
+allLogText = strjoin([fbCells{:}], '\n');
 fprintf(finalout, '%s', allLogText); % Write accumulated log text
 fclose(finalout);
 
@@ -212,7 +220,32 @@ timeTol = 1e-2;
 distTol = 1e-3;
 bonusFullEps = 1e-6;
 bonusMinDisplay = 1e-2;
+
+% Pre-initialize key inputs, then populate from the workbook
+fuel_available = NaN;
+fuel_capacity = NaN;
+fuel_required = NaN;
+volume_remaining = NaN;
+cost = NaN;
+numaircraft = NaN;
+radius = NaN;
+aim120 = NaN;
+aim9 = NaN;
+takeoff_dist = NaN;
+landing_dist = NaN;
+
+fuel_available = Main(18, 15);
 fuel_capacity = Main(15, 15);
+fuel_required = Main(40, 24);
+volume_remaining = Main(23, 17);
+cost = Main(31, 17);
+numaircraft = Main(31, 14);
+radius = Main(37, 25);
+aim120 = Main(3, 28);
+aim9 = Main(4, 28);
+takeoff_dist = Main(12, 24);
+landing_dist = Main(13, 24);
+
 if ~isnan(fuel_available) && ~isnan(fuel_capacity) && fuel_capacity ~= 0
     betaDefault = 1 - fuel_available/(2*fuel_capacity);
 else
@@ -221,16 +254,40 @@ end
 betaExpected = betaDefault;
 
 ConstraintsMach = Main(4, 21);
-radius = Main(37, 25);
-aim120 = Main(3, 28);
-aim9 = Main(4, 28);
-takeoff_dist = Main(12, 24);
-landing_dist = Main(13, 24);
-fuel_available = Main(18, 15);
-fuel_required = Main(40, 24);
-volume_remaining = Main(23, 17);
-cost = Main(31, 17);
-numaircraft = Main(31, 14);
+
+% Sheet validation to catch missing geometry inputs early
+geomBlock = Main(18:27, 2:8);
+geomNaN = isnan(geomBlock);
+skipCells = [...
+    7 1;  % B24 intentionally blank
+    7 2;  % C24 intentionally blank
+    10 3; % D27 intentionally blank
+    10 4; % E27 intentionally blank
+    10 5; % F27 intentionally blank
+    10 6; % G27 intentionally blank
+    9 7]; % H26 intentionally blank
+for k = 1:size(skipCells,1)
+    geomNaN(skipCells(k,1), skipCells(k,2)) = false;
+end
+if any(geomNaN, 'all')
+    [rIdx, cIdx] = find(geomNaN);
+    badCells = arrayfun(@(r,c) sub2excel(r+17, c+1), rIdx, cIdx, 'UniformOutput', false);
+    logText = logf(logText, 'Sheet validation: Geometry inputs B18:H27 must be numeric (missing at %s).\n', strjoin(badCells, ', '));
+    fb = char(logText);
+    pt = 0;
+    return;
+end
+
+geomBlock2 = Main(34:53, 3:6);
+geomNaN2 = isnan(geomBlock2);
+if any(geomNaN2, 'all')
+    [rIdx, cIdx] = find(geomNaN2);
+    badCells = arrayfun(@(r,c) sub2excel(r+33, c+2), rIdx, cIdx, 'UniformOutput', false);
+    logText = logf(logText, 'Sheet validation: Geometry inputs C34:F53 must be numeric (missing at %s).\n', strjoin(badCells, ', '));
+    fb = char(logText);
+    pt = 0;
+    return;
+end
 
 % Aero tab programming (3 pts)
 aeroIssues = 0;
@@ -885,12 +942,18 @@ if constraintCurveFailures == 1
     logText = logf(logText, '-4 pts Design did not meet the following constraint: %s. Your design is not above those limits; increase T/W or relax the offending constraint values toward their thresholds.%s\n', char(failedCurves{1}), curveSuffixFew);
 elseif constraintCurveFailures >= 2
     pt = pt - 8;
-    summary = strjoin(failedCurves, ', ');
+    summary = strjoin(string(failedCurves), ', ');
     suffix = curveSuffixFew;
     if constraintCurveFailures > 6
         suffix = curveSuffixMany;
     end
     logText = logf(logText, '-8 pts Design did not meet the following constraints: %s. Your design is not above those limits; increase T/W or relax the offending constraint values toward their thresholds.%s\n', char(summary), suffix);
+end
+
+% Command window detail to aid debugging (constraint checks and key failures)
+fprintf('Constraints: %d table issue(s), %d curve issue(s)\n', constraintErrors, constraintCurveFailures);
+if constraintCurveFailures > 0
+    fprintf('Curve misses: %s\n', strjoin(string(failedCurves), ', '));
 end
 
 objectiveFields = fieldnames(objectiveSet);
@@ -1176,6 +1239,9 @@ if stabilityDeduction > 0
     logText = logf(logText, '-%d pts Stability parameters outside limits\n', stabilityDeduction);
 end
 
+% Command window details for geometry/stability/gear to mirror exam verbosity
+fprintf('Geometry checks: controls issues=%d, stability issues=%d, stealth issues=%d\n', controlFailures, stabilityErrors, stealthFailures);
+
 % Fuel (2 pts) and volume (2 pts)
 if isnan(fuel_available) || isnan(fuel_required) || fuel_available + tol < fuel_required
     pt = pt - 2;
@@ -1242,9 +1308,27 @@ if isnan(rolloverActual) || isnan(rolloverLimit) || rolloverActual >= rolloverLi
 end
 
 rotationSpeed = Gear(20, 14);
-if isnan(rotationSpeed) || rotationSpeed >= 200 - tol
+takeoffSpeed = Gear(21, 14);
+if isnan(rotationSpeed)
     gearFailures = gearFailures + 1;
-    logText = logf(logText, 'Violates takeoff rotation speed: %.1f kts (must be < 200 kts)\n', rotationSpeed);
+    logText = logf(logText, 'Violates takeoff rotation speed: value missing (must be < 200 kts and less than N21)\n');
+else
+    if rotationSpeed >= 200 - tol
+        gearFailures = gearFailures + 1;
+        logText = logf(logText, 'Violates takeoff rotation speed: %.1f kts (must be < 200 kts)\n', rotationSpeed);
+    end
+    if ~isnan(takeoffSpeed)
+        if rotationSpeed >= takeoffSpeed - tol
+            gearFailures = gearFailures + 1;
+            logText = logf(logText, 'Takeoff speed margin failed: N20 must be less than N21 (N20 = %.1f, N21 = %.1f)\n', rotationSpeed, takeoffSpeed);
+        end
+        if takeoffSpeed > 200 + tol
+            logText = logf(logText, 'Takeoff speed reference warning: N21 = %.1f kts (should be <= 200 kts)\n', takeoffSpeed);
+        end
+    else
+        gearFailures = gearFailures + 1;
+        logText = logf(logText, 'Takeoff speed reference missing (N21); cannot verify N20 margin.\n');
+    end
 end
 
 if gearFailures > 0
@@ -1252,6 +1336,7 @@ if gearFailures > 0
     pt = pt - deduction;
     logText = logf(logText, '-%d pts Landing gear geometry outside limits\n', deduction);
 end
+fprintf('Landing gear issues=%d\n', gearFailures);
 % Final score and bonuses
 baseScore = max(0, pt);
 pt = baseScore;
@@ -1410,14 +1495,14 @@ sheets.Main   = safeReadMatrix(filename, 'Main',   {'S3','T3','U3','V3','W3','X3
     'W7','X7','Y7','T8','U8','V8','W8','X8','Y8','T9','U9','V9','W9','X9',...
     'Y9','S12','S13','AB3','AB4','X12','X13','Y37','M10','O10','P10','Q10',...
     'O18','X40','Q23','Q31','N31','P13','Q13','B32','B19','C19','D19','H19','B21','C21',...
-    'D21','H21','B23','C23','D23','H23','C24','D24','H24','C26','D26','H26',...
-    'B27','C27','D27','H27','F31','F32','H29','I29','O15','B34','B35','B36','B37',...
+    'D21','H21','B23','C23','D23','H23','D24','H24','C26','D26',...
+    'B27','C27','H27','F31','F32','H29','I29','O15','B34','B35','B36','B37',...
     'B38','B39','B40','B41','B42','B43','B44','B45','B46','B47','B48','B49',...
     'B50','B51','B52','B53','E34','E35','E36','E37','E38','E39','E40','E41',...
     'E42','E43','E44','E45','E46','E47','E48','E49','E50','E51','E52','E53',...
     'D18','D23','D52','F52'});
 sheets.Consts = safeReadMatrix(filename, 'Consts', {'K22','K23','K24','K26','K27','K28','K29','K32','AO42','AQ41','K33'});
-sheets.Gear   = safeReadMatrix(filename, 'Gear',   {'J20','L20','L21','M20','M21','N20'});
+sheets.Gear   = safeReadMatrix(filename, 'Gear',   {'J20','L20','L21','M20','M21','N20','N21'});
 sheets.Geom   = safeReadMatrix(filename, 'Geom',   {'C8','C10','M152','K15','L155','L38'});
 
 % Constants is off by three rows. Row 22 of the Consts tab comes in as
@@ -1441,13 +1526,8 @@ function data = safeReadMatrix(filename, sheetname, fallbackCells)
 % Output:
 %   data - Numeric matrix with fallback values patched in if needed
 
-% Try fast read
-% if strcmp(sheetname,'Gear')
-%     data = readmatrix(filename, 'Sheet', sheetname,'DataRange','A1:M155');
-% else
-%     data = readmatrix(filename, 'Sheet', sheetname,'DataRange','A1:AQ52');
-% end
-data = readmatrix(filename, 'Sheet', sheetname,'DataRange','A1:AQ250');
+% Try fast read without invoking Excel UI
+data = readmatrix(filename, 'Sheet', sheetname,'DataRange','A1:AQ250','UseExcel', false);
 
 
 % Convert cell references to row/col indices
@@ -1467,7 +1547,7 @@ end
 
 % If needed, patch from readcell
 if needsPatch
-    raw = readcell(filename, 'Sheet', sheetname);
+    raw = readcell(filename, 'Sheet', sheetname, 'UseExcel', false);
     for i = 1:numel(fallbackIndices)
         idx = fallbackIndices{i};
         if idx(1) <= size(raw,1) && idx(2) <= size(raw,2)
@@ -1701,35 +1781,25 @@ uicontrol('Parent', d, ...
             fid = fopen(csvFilename, 'w');
 
             % Assignment title column (update if needed)
-            assignmentTitle = 'Final Project: AATF Design Iteration 1 & Cutout [Total Pts: 15 Score]';
+            assignmentTitle = 'Final AATF Jet10 Design [Total Pts: 40 Score] |409581';
 
-            % Write header
-            fprintf(fid, '"Last Name","First Name","Username","%s","Grading Notes","Notes Format","Feedback to Learner","Feedback Format"\n', assignmentTitle);
+            % Write header (username-only export)
+            fprintf(fid, '"Username","%s","Feedback to Learner","Feedback Format","Grading Notes","Notes Format"\n', assignmentTitle);
 
             for i = 1:numel(files)
                 fname = files(i).name;
 
-                % Extract username from filename
-                tokens = regexp(fname, '_([a-z0-9\\.]+)_attempt_.*?_(.*?)_', 'tokens');
-                if ~isempty(tokens)
-                    username = tokens{1}{1};
-                    fullName = strsplit(tokens{1}{2});
-                    if numel(fullName) >= 2
-                        firstName = strjoin(fullName(1:end-1), ' ');
-                        lastName = fullName{end};
-                    else
-                        firstName = '';
-                        lastName = fullName{1};
-                    end
+                % Extract username from the canonical segment "_<username>_attempt" (allowing underscores/dots/dashes)
+                userTok = regexp(fname, '_([^_]+)_attempt', 'tokens', 'once');
+                if ~isempty(userTok)
+                    username = userTok{1};
                 else
                     username = 'UNKNOWN';
-                    firstName = '';
-                    lastName = '';
                 end
 
                 % Get score and feedback
-                score = roundToTenth(points(i) + 5);
-                fbText = feedback{i};
+                score = max(0, min(100, roundToTenth(points(i))));
+                fbText = char(strtrim(string(feedback{i})));
 
                 % Sanitize feedback for SMART_TEXT (HTML-safe but readable)
                 fbText = strrep(fbText, 'â‰¥', '&ge;');
@@ -1745,8 +1815,8 @@ uicontrol('Parent', d, ...
                 fbText = strrep(fbText, newline, '<br>');
 
                 % Write row
-                fprintf(fid, '"%s","%s","%s","%.1f","","","%s","SMART_TEXT"\n', ...
-                    lastName, firstName, username, score, fbText);
+                fprintf(fid, '"%s","%.1f","%s","%s","",""\n', ...
+                    username, score, fbText, 'SMART_TEXT');
             end
 
             fclose(fid);

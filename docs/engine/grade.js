@@ -12,6 +12,16 @@ import { runLandingGearChecks } from "./rules/landingGear.js";
 import { getCell, asNumber } from "./parseUtils.js";
 import { format } from "./format.js";
 
+function cellRef(rowIdx, colIdx) {
+  let col = "";
+  let n = colIdx;
+  while (n >= 0) {
+    col = String.fromCharCode((n % 26) + 65) + col;
+    n = Math.floor(n / 26) - 1;
+  }
+  return `${col}${rowIdx + 1}`;
+}
+
 const TOLERANCES = {
   tol: 1e-3,
   mach: 1e-2,
@@ -116,6 +126,33 @@ function computeBonuses(workbook) {
 }
 
 export function gradeWorkbook(workbook, rules) {
+  // Preflight: abort if Main sheet contains Excel errors / invalid cells
+  if (workbook.sheets?.main) {
+    const invalidCells = [];
+    workbook.sheets.main.forEach((row, rIdx) => {
+      if (!row) {
+        return;
+      }
+      row.forEach((value, cIdx) => {
+        if (typeof value === "string" && /^#(DIV\/0!|VALUE!|REF!|NAME\?|NUM!|NULL!|N\/A)$/i.test(value.trim())) {
+          invalidCells.push(cellRef(rIdx, cIdx));
+        } else if (typeof value === "number" && !Number.isFinite(value)) {
+          invalidCells.push(cellRef(rIdx, cIdx));
+        }
+      });
+    });
+    if (invalidCells.length > 0) {
+      const msg = `Invalid for analysis: Excel errors in Main sheet at ${invalidCells.join(", ")}. Correct the errors and resubmit.`;
+      return {
+        score: 0,
+        maxScore: 40,
+        scoreLine: msg,
+        bonusLine: "",
+        feedbackLog: msg,
+      };
+    }
+  }
+
   const feedback = [];
   let baseScore = 40;
 
