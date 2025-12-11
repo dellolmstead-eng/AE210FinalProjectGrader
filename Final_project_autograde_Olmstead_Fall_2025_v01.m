@@ -40,7 +40,7 @@
 %
 % Author: Lt Col Dell Olmstead, based on work by Capt Carol Bryant and Capt Anna Mason
 % Heavy ChatGPT CODEX help in Nov 2025
-% Last Updated: 09 Dec 2025 23:09
+% Last Updated: 10 Dec 2025 15:55
 %--------------------------------------------------------------------------
 clear; close all; clc;
 
@@ -110,6 +110,7 @@ end
 textout = strings(numel(files), 1);
 points = 10*ones(numel(files),1);  % Initialize points for each file
 feedback = cell(1,numel(files));
+numFiles = numel(files);
 
 fprintf('Reading %d files\n', numel(files));
 
@@ -118,12 +119,12 @@ if strcmp(mode, 'folder')
     
 parfor cadetIdx = 1:numel(files)
     filename = fullfile(folderAnalyzed, files(cadetIdx).name);
-    fprintf('Grading %s\n', files(cadetIdx).name);
     try
         [pt, fb] = gradeCadet(filename);
         points(cadetIdx) = pt;
-        feedback{cadetIdx} = fb;
-        fprintf('Finished %s\n', files(cadetIdx).name);
+        feedback{cadetIdx} = fb; % keep raw feedback for log file
+        dispText = sprintf('#%d/%d %s\n%s', cadetIdx, numFiles, files(cadetIdx).name, char(fb));
+        fprintf('Feedback (%d/%d) for %s:\n%s\n', cadetIdx, numFiles, files(cadetIdx).name, dispText);
     catch
         points(cadetIdx) = NaN;
         feedback{cadetIdx} = sprintf('Error reading or grading file: %s', files(cadetIdx).name);
@@ -134,9 +135,9 @@ end
 else %       %%% Use the below code to run a single cadet
 
     filename = fullfile(folderAnalyzed, files(1).name);
-    fprintf('Grading %s\n', files(1).name);
     [points, feedback{1}] = gradeCadet(filename);
-    fprintf('Finished %s\n', files(1).name);
+    dispText = sprintf('#%d/%d %s\n%s', 1, numFiles, files(1).name, char(feedback{1}));
+    fprintf('Feedback (1/%d) for %s:\n%s\n', numFiles, files(1).name, dispText);
 
 end
 
@@ -557,6 +558,7 @@ end
 % Stealth shaping 
 STEALTH_TOL = 5;
 stealthFailures = 0;
+stealthHeaderLogged = false;
 
 wingLeadingAngle = computeEdgeAngleDeg(Geom, 38, 39);
 wingTrailingAngle = computeEdgeAngleDeg(Geom, 40, 41);
@@ -578,41 +580,45 @@ strakeActive = isnan(strakeArea) || strakeArea >= 1;
 vtActive = isnan(vtArea) || vtArea >= 1;
 
 if pcsActive && wingActive && ~anglesParallel(pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL)
-    logText = logf(logText, 'Pitch control surface leading edge sweep %.1f° must match the wing leading edge sweep %.1f° (+/- %.1f°).\n', pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL);
+    [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Pitch control surface leading edge sweep %.1f° must match the wing leading edge sweep %.1f° (+/- %.1f°).\n', pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL);
     stealthFailures = stealthFailures + 1;
 end
 
 wingTipTE = geomPlanformPoint(Geom, 40);
 wingCenterTE = geomPlanformPoint(Geom, 41);
-if ~(wingActive && (anglesParallel(wingTrailingAngle, wingLeadingAngle, STEALTH_TOL) || teNormalHitsCenterline(wingTipTE, wingCenterTE)))
-    logText = logf(logText, 'Wing trailing edge %.1f° is not parallel to the leading edge and its normal does not reach the fuselage centerline (+/- %.1f°).\n', wingTrailingAngle, STEALTH_TOL);
+if wingActive
+    if ~(anglesParallel(wingTrailingAngle, wingLeadingAngle, STEALTH_TOL) || teNormalHitsCenterline(wingTipTE, wingCenterTE))
+        [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Wing trailing edge %.1f° is not parallel to the leading edge and its normal does not reach the fuselage centerline (+/- %.1f°).\n', wingTrailingAngle, STEALTH_TOL);
+        stealthFailures = stealthFailures + 1;
+    end
+elseif pcsActive || strakeActive || vtActive
+    [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Unable to verify stealth shaping due to missing geometry data\n');
     stealthFailures = stealthFailures + 1;
 end
 
 if pcsActive && ~isnan(pcsDihedral) && pcsDihedral > 5
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
 end
 
 if strakeActive
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, strakeLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Strake leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, strakeTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Strake trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, strakeLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Strake leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, strakeTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Strake trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
 end
 
 if ~vtActive
     % ignore
 elseif isnan(vtTilt)
-    logText = logf(logText, 'Unable to verify stealth shaping due to missing geometry data\n');
+    [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Unable to verify stealth shaping due to missing geometry data\n');
     stealthFailures = stealthFailures + 1;
 elseif vtTilt < 85
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, vtLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, vtLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
 end
 
-stealthDeduction = min(5, stealthFailures);
-if stealthDeduction > 0
-    pt = pt - stealthDeduction;
-    logText = logf(logText, '-%d pts Stealth shaping issues\n', stealthDeduction);
+stealthDeduction = 0; % informational only, no points deducted
+if stealthFailures > 0
+    logText = logf(logText, 'Stealth shaping issues detected (no point deduction).\n');
 end
 
 % Constraint table values (2 pts max deduction)
@@ -842,8 +848,8 @@ if takeoff_dist > 3000 + distTol
 elseif ~isnan(takeoff_dist) && takeoff_dist <= 2500 + distTol
     logText = logf(logText, 'Takeoff distance meets objective (<= 2500 ft) [+1 bonus]: %.0f\n', takeoff_dist);
 end
-if abs(Main(12,19) - betaExpected) > tol
-    logText = logf(logText, 'Takeoff: W/WTO must be set for 50%% fuel load (%.3f); found %.3f\n', betaExpected, Main(12,19));
+if abs(Main(12,19) - 1.0) > tol
+    logText = logf(logText, 'Takeoff: W/WTO must be 1.000 (full fuel) within +/- %.3f; found %.3f\n', tol, Main(12,19));
     constraintErrors = constraintErrors + 1;
 end
 
@@ -875,8 +881,8 @@ if landing_dist > 5000 + distTol
 elseif ~isnan(landing_dist) && landing_dist <= 3500 + distTol
     logText = logf(logText, 'Landing distance meets objective (<= 3500 ft) [+1 bonus]: %.0f\n', landing_dist);
 end
-if abs(Main(13,19) - betaExpected) > tol
-    logText = logf(logText, 'Landing: W/WTO must be set for 50%% fuel load (%.3f); found %.3f\n', betaExpected, Main(13,19));
+if abs(Main(13,19) - 1.0) > tol
+    logText = logf(logText, 'Landing: W/WTO must be 1.000 (loaded worst case) within +/- %.3f; found %.3f\n', tol, Main(13,19));
     constraintErrors = constraintErrors + 1;
 end
 
@@ -950,12 +956,6 @@ elseif constraintCurveFailures >= 2
     logText = logf(logText, '-8 pts Design did not meet the following constraints: %s. Your design is not above those limits; increase T/W or relax the offending constraint values toward their thresholds.%s\n', char(summary), suffix);
 end
 
-% Command window detail to aid debugging (constraint checks and key failures)
-fprintf('Constraints: %d table issue(s), %d curve issue(s)\n', constraintErrors, constraintCurveFailures);
-if constraintCurveFailures > 0
-    fprintf('Curve misses: %s\n', strjoin(string(failedCurves), ', '));
-end
-
 objectiveFields = fieldnames(objectiveSet);
 for idx = 1:numel(objectiveFields)
     key = objectiveFields{idx};
@@ -979,233 +979,6 @@ if isnan(aim120) || aim120 < 8 - tol
 elseif ~isnan(aim9) && aim9 >= 2 - tol
     logText = logf(logText, 'Payload meets objective [+1 bonus]: %.0f AIM-120s + %.0f AIM-9s\n', aim120, aim9);
 end
-% Control surface attachment (2 pts)
-controlFailures = 0;
-VALUE_TOL = 1e-3;
-AR_TOL = 0.1;
-VT_WING_FRACTION = 0.8;
-
-fuselage_length = Main(32, 2);
-fuselage_end = fuselage_length;
-PCS_x = Main(23, 3);
-PCS_root_chord = Geom(8, 3);
-if any(isnan([fuselage_end, PCS_x, PCS_root_chord]))
-    logText = logf(logText, 'Unable to verify PCS placement due to missing geometry data\n');
-    controlFailures = controlFailures + 1;
-elseif PCS_x > (fuselage_end - 0.25 * PCS_root_chord)
-    logText = logf(logText, 'PCS X-location too far aft. Must overlap at least 25%% of root chord.\n');
-    controlFailures = controlFailures + 1;
-end
-
-VT_x = Main(23, 8);
-VT_root_chord = Geom(10, 3);
-if any(isnan([fuselage_end, VT_x, VT_root_chord]))
-    logText = logf(logText, 'Unable to verify vertical tail placement due to missing geometry data\n');
-    controlFailures = controlFailures + 1;
-elseif VT_x > (fuselage_end - 0.25 * VT_root_chord)
-    logText = logf(logText, 'VT X-location too far aft. Must overlap at least 25%% of root chord.\n');
-    controlFailures = controlFailures + 1;
-end
-
-PCS_z = Main(25, 3);
-fuse_z_center = Main(52, 4);
-fuse_z_height = Main(52, 6);
-if any(isnan([PCS_z, fuse_z_center, fuse_z_height]))
-    logText = logf(logText, 'Unable to verify PCS vertical placement due to missing geometry data\n');
-    controlFailures = controlFailures + 1;
-elseif PCS_z < (fuse_z_center - fuse_z_height/2) || PCS_z > (fuse_z_center + fuse_z_height/2)
-    logText = logf(logText, 'PCS Z-location outside fuselage vertical bounds.\n');
-    controlFailures = controlFailures + 1;
-end
-
-VT_y = Main(24, 8);
-fuse_width = Main(52, 5);
-vtMountedOffFuselage = false;
-if any(isnan([VT_y, fuse_width]))
-    logText = logf(logText, 'Unable to verify vertical tail lateral placement due to missing geometry data\n');
-    controlFailures = controlFailures + 1;
-elseif abs(VT_y) > fuse_width/2 + VALUE_TOL
-    vtMountedOffFuselage = true;
-    logText = logf(logText, 'Vertical tail mounted off the fuselage; ensure structural support at the wing.\n');
-end
-
-if Main(18, 4) > 1
-    sweep = Geom(15, 11);
-    y = Geom(152, 13);
-    strake = Geom(155, 12);
-    apex = Geom(38, 12);
-    if any(isnan([sweep, y, strake, apex]))
-        logText = logf(logText, 'Unable to verify strake attachment due to missing geometry data\n');
-        controlFailures = controlFailures + 1;
-    else
-        wing = (y / tand(90 - sweep) + apex);
-        if wing >= (strake + 0.5)
-            logText = logf(logText, 'Strake disconnected.\n');
-            controlFailures = controlFailures + 1;
-        end
-    end
-end
-
-component_positions = Main(23, 2:8);
-if any(component_positions >= fuselage_end)
-    logText = logf(logText, 'One or more components X-location extend beyond the fuselage end (B32 = %.2f)\n', fuselage_end);
-    controlFailures = controlFailures + 1;
-end
-
-if vtMountedOffFuselage
-    vtApex = geomPlanformPoint(Geom, 163);
-    vtRootTE = geomPlanformPoint(Geom, 166);
-    wingTE = geomPlanformPoint(Geom, 41);
-    if any(isnan([vtApex(1), vtRootTE(1), wingTE(1)]))
-        logText = logf(logText, 'Unable to verify vertical tail overlap with wing due to missing geometry data\n');
-        controlFailures = controlFailures + 1;
-    else
-        chord = vtRootTE(1) - vtApex(1);
-        overlap = max(0, min(wingTE(1), vtRootTE(1)) - vtApex(1));
-        if ~(chord > 0) || overlap + VALUE_TOL < VT_WING_FRACTION * chord
-            logText = logf(logText, 'Vertical tail mounted on the wing must overlap at least 80%% of its root chord with the wing trailing edge.\n');
-            controlFailures = controlFailures + 1;
-        end
-    end
-end
-
-wingAR = Main(19, 2);
-pcsAR = Main(19, 3);
-vtAR = Main(19, 8);
-if ~isnan(wingAR) && ~isnan(pcsAR) && pcsAR > wingAR + AR_TOL
-    logText = logf(logText, 'Pitch control surface aspect ratio (%.2f) must be lower than wing aspect ratio (%.2f).\n', pcsAR, wingAR);
-    controlFailures = controlFailures + 1;
-end
-if ~isnan(wingAR) && ~isnan(vtAR) && vtAR >= wingAR - AR_TOL
-    logText = logf(logText, 'Vertical tail aspect ratio (%.2f) must be lower than wing aspect ratio (%.2f).\n', vtAR, wingAR);
-    controlFailures = controlFailures + 1;
-end
-
-engine_diameter = Main(29, 8);
-inlet_x = Main(31, 6);
-compressor_x = Main(32, 6);
-engine_start = inlet_x + compressor_x;
-widthValues = [];
-if ~isnan(engine_start)
-    for row = 34:53
-        station_x = Main(row, 2);
-        width = Main(row, 5);
-        if ~isnan(station_x) && ~isnan(width) && station_x >= engine_start
-            widthValues(end+1) = width; %#ok<AGROW>
-        end
-    end
-end
-if isempty(widthValues) || isnan(engine_diameter)
-    logText = logf(logText, 'Unable to verify fuselage width clearance for engines\n');
-    controlFailures = controlFailures + 1;
-else
-    minWidth = min(widthValues);
-    maxWidth = max(widthValues);
-    requiredWidth = engine_diameter + 0.5;
-    if minWidth + VALUE_TOL <= requiredWidth
-        logText = logf(logText, 'Fuselage minimum width (%.2f ft) must exceed engine diameter + 0.5 ft (%.2f ft).\n', minWidth, requiredWidth);
-        controlFailures = controlFailures + 1;
-    end
-    allowedOverhang = 2 * maxWidth;
-    if ~isnan(fuselage_end)
-        pcsTipX = max(Geom(117, 12), Geom(118, 12));
-        vtTipX = max(Geom(165, 12), Geom(166, 12));
-        if ~isnan(pcsTipX)
-            overhang = pcsTipX - fuselage_end;
-            if overhang > allowedOverhang + VALUE_TOL
-                logText = logf(logText, '%s extends %.2f ft beyond the fuselage end (limit %.2f ft).\n', 'Pitch control surface', overhang, allowedOverhang);
-                controlFailures = controlFailures + 1;
-            end
-        end
-        if ~isnan(vtTipX)
-            overhang = vtTipX - fuselage_end;
-            if overhang > allowedOverhang + VALUE_TOL
-                logText = logf(logText, '%s extends %.2f ft beyond the fuselage end (limit %.2f ft).\n', 'Vertical tail', overhang, allowedOverhang);
-                controlFailures = controlFailures + 1;
-            end
-        end
-    end
-end
-
-engine_length = Main(29, 9);
-if any(isnan([engine_diameter, fuselage_end, inlet_x, compressor_x, engine_length]))
-    logText = logf(logText, 'Unable to verify engine protrusion due to missing geometry data\n');
-    controlFailures = controlFailures + 1;
-else
-    protrusion = inlet_x + compressor_x + engine_length - fuselage_end;
-    if protrusion > engine_diameter + VALUE_TOL
-        logText = logf(logText, 'Engine nacelles protrude %.2f ft past the fuselage end (limit %.2f ft).\n', protrusion, engine_diameter);
-        controlFailures = controlFailures + 1;
-    end
-end
-
-if controlFailures > 0
-    deduction = min(2, controlFailures);
-    pt = pt - deduction;
-    logText = logf(logText, '-%d pts Control surface placement issues\n', deduction);
-end
-
-% Stealth shaping 
-STEALTH_TOL = 5;
-stealthFailures = 0;
-
-wingLeadingAngle = computeEdgeAngleDeg(Geom, 38, 39);
-wingTrailingAngle = computeEdgeAngleDeg(Geom, 40, 41);
-pcsLeadingAngle = computeEdgeAngleDeg(Geom, 115, 116);
-pcsTrailingAngle = computeEdgeAngleDeg(Geom, 117, 118);
-strakeLeadingAngle = computeEdgeAngleDeg(Geom, 152, 153);
-strakeTrailingAngle = computeEdgeAngleDeg(Geom, 154, 155);
-vtLeadingAngle = computeEdgeAngleDeg(Geom, 163, 164);
-vtTrailingAngle = computeEdgeAngleDeg(Geom, 165, 166);
-pcsDihedral = Main(26, 3);
-vtTilt = Main(27, 8);
-wingArea = Main(18, 2);
-pcsArea = Main(18, 3);
-strakeArea = Main(18, 4);
-vtArea = Main(18, 8);
-wingActive = isnan(wingArea) || wingArea >= 1;
-pcsActive = isnan(pcsArea) || pcsArea >= 1;
-strakeActive = isnan(strakeArea) || strakeArea >= 1;
-vtActive = isnan(vtArea) || vtArea >= 1;
-
-if pcsActive && wingActive && ~anglesParallel(pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL)
-    logText = logf(logText, 'Pitch control surface leading edge sweep %.1f° must match the wing leading edge sweep %.1f° (+/- %.1f°).\n', pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL);
-    stealthFailures = stealthFailures + 1;
-end
-
-wingTipTE = geomPlanformPoint(Geom, 40);
-wingCenterTE = geomPlanformPoint(Geom, 41);
-if ~(wingActive && (anglesParallel(wingTrailingAngle, wingLeadingAngle, STEALTH_TOL) || teNormalHitsCenterline(wingTipTE, wingCenterTE)))
-    logText = logf(logText, 'Wing trailing edge %.1f° is not parallel to the leading edge and its normal does not reach the fuselage centerline (+/- %.1f°).\n', wingTrailingAngle, STEALTH_TOL);
-    stealthFailures = stealthFailures + 1;
-end
-
-if pcsActive && ~isnan(pcsDihedral) && pcsDihedral > 5
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-end
-
-if strakeActive
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, strakeLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Strake leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, strakeTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Strake trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-end
-
-if ~vtActive
-    % ignore
-elseif isnan(vtTilt)
-    logText = logf(logText, 'Unable to verify stealth shaping due to missing geometry data\n');
-    stealthFailures = stealthFailures + 1;
-elseif vtTilt < 85
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, vtLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures] = requireParallelAngle(logText, stealthFailures, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-end
-
-stealthDeduction = min(5, stealthFailures);
-if stealthDeduction > 0
-    pt = pt - stealthDeduction;
-    logText = logf(logText, '-%d pts Stealth shaping issues\n', stealthDeduction);
-end
-
 % Stability (3 pts)
 SM = Main(10, 13);
 clb = Main(10, 15);
@@ -1238,9 +1011,6 @@ if stabilityDeduction > 0
     pt = pt - stabilityDeduction;
     logText = logf(logText, '-%d pts Stability parameters outside limits\n', stabilityDeduction);
 end
-
-% Command window details for geometry/stability/gear to mirror exam verbosity
-fprintf('Geometry checks: controls issues=%d, stability issues=%d, stealth issues=%d\n', controlFailures, stabilityErrors, stealthFailures);
 
 % Fuel (2 pts) and volume (2 pts)
 if isnan(fuel_available) || isnan(fuel_required) || fuel_available + tol < fuel_required
@@ -1336,7 +1106,6 @@ if gearFailures > 0
     pt = pt - deduction;
     logText = logf(logText, '-%d pts Landing gear geometry outside limits\n', deduction);
 end
-fprintf('Landing gear issues=%d\n', gearFailures);
 % Final score and bonuses
 baseScore = max(0, pt);
 pt = baseScore;
@@ -1476,11 +1245,12 @@ pt = roundToTenth(baseScore + bonusPoints);
 logText = logf(logText, 'Jet11 base score: %d out of 40\n', baseScore);
 logText = logf(logText, 'Bonus points: +%.1f (final score %.1f)\n', bonusPoints, pt);
 
-fprintf('%s completed\n', [name, ext]);
-fprintf('Jet11 base score: %d / 40\n', baseScore);
-fprintf('Jet11 final score (bonus applied): %.1f\n\n', pt);
-
-fb = char(logText);
+% Clean up formatting: trim lines, drop empties, join with single newlines
+cleanLines = splitlines(string(logText));
+cleanLines = strtrim(cleanLines);
+cleanLines = cleanLines(~strcmp(cleanLines, ""));
+fbStr = strjoin(cleanLines, newline);
+fb = char(fbStr);
 end
 %% Function to read all useful sheets, and verify numbers returned for used cells
 function sheets = loadAllJet11Sheets(filename)
@@ -1635,14 +1405,22 @@ alt = 180 - diffVal;
 tf = min(diffVal, alt) <= tol;
 end
 
-function [logText, failures] = requireParallelAngle(logText, failures, angle, wingAngle, tol, template)
+function [logText, failures, headerLogged] = requireParallelAngle(logText, failures, headerLogged, angle, wingAngle, tol, template)
 if isnan(angle) || isnan(wingAngle)
-    logText = logf(logText, 'Unable to verify stealth shaping due to missing geometry data\n');
+    [logText, headerLogged] = logStealth(logText, headerLogged, 'Unable to verify stealth shaping due to missing geometry data\n');
     failures = failures + 1;
 elseif ~anglesParallel(angle, wingAngle, tol)
-    logText = logf(logText, template, angle, wingAngle, tol);
+    [logText, headerLogged] = logStealth(logText, headerLogged, template, angle, wingAngle, tol);
     failures = failures + 1;
 end
+end
+
+function [logText, headerLogged] = logStealth(logText, headerLogged, fmt, varargin)
+if ~headerLogged
+    logText = logf(logText, 'Stealth shaping violations:\n');
+    headerLogged = true;
+end
+logText = logf(logText, fmt, varargin{:});
 end
 
 function field = mapCurveField(label)
@@ -1790,7 +1568,7 @@ uicontrol('Parent', d, ...
                 fname = files(i).name;
 
                 % Extract username from the canonical segment "_<username>_attempt" (allowing underscores/dots/dashes)
-                userTok = regexp(fname, '_([^_]+)_attempt', 'tokens', 'once');
+                userTok = regexp(fname, '_([A-Za-z0-9._-]+)_attempt', 'tokens', 'once');
                 if ~isempty(userTok)
                     username = userTok{1};
                 else
