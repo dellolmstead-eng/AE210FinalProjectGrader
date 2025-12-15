@@ -1,14 +1,16 @@
-﻿
+
 % Final Project Autograder: Grades AE210 Jet11 Excel submissions, logs feedback, and optionally exports Blackboard-compatible scores.
 
 
 %--------------------------------------------------------------------------
 % AE210 Final Project Autograder Script â€“ Fall 2025
+% Version: v2.0
 %
 % Description:
 % This script automates grading for the AE210 Final Project by processing Jet11 Excel files (*.xlsm). It evaluates 
 % multiple design criteria, generates detailed feedback, and outputs both a
 % summary log and an optional Blackboard-compatible grade import file.
+% 
 % Sometimes the parallel pool requires 2 runs to start correctly. Just stop
 % the run and restart if it freezes for more than 30 seconds.
 %
@@ -616,9 +618,10 @@ elseif vtTilt < 85
     [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
 end
 
-stealthDeduction = 0; % informational only, no points deducted
+stealthDeduction = min(5, stealthFailures); % up to 5-point hit for stealth issues
 if stealthFailures > 0
-    logText = logf(logText, 'Stealth shaping issues detected (no point deduction).\n');
+    pt = pt - stealthDeduction;
+    logText = logf(logText, '-%d pts Stealth shaping issues detected.\n', stealthDeduction);
 end
 
 % Constraint table values (2 pts max deduction)
@@ -1093,7 +1096,8 @@ else
             logText = logf(logText, 'Takeoff speed margin failed: N20 must be less than N21 (N20 = %.1f, N21 = %.1f)\n', rotationSpeed, takeoffSpeed);
         end
         if takeoffSpeed > 200 + tol
-            logText = logf(logText, 'Takeoff speed reference warning: N21 = %.1f kts (should be <= 200 kts)\n', takeoffSpeed);
+            gearFailures = gearFailures + 1;
+            logText = logf(logText, 'Takeoff speed too high: N21 = %.1f kts (must be <= 200 kts)\n', takeoffSpeed);
         end
     else
         gearFailures = gearFailures + 1;
@@ -1246,7 +1250,8 @@ logText = logf(logText, 'Jet11 base score: %d out of 40\n', baseScore);
 logText = logf(logText, 'Bonus points: +%.1f (final score %.1f)\n', bonusPoints, pt);
 
 % Clean up formatting: trim lines, drop empties, join with single newlines
-cleanLines = splitlines(string(logText));
+logText = strjoin(string(logText), ""); % ensure single string
+cleanLines = splitlines(logText);
 cleanLines = strtrim(cleanLines);
 cleanLines = cleanLines(~strcmp(cleanLines, ""));
 fbStr = strjoin(cleanLines, newline);
@@ -1562,7 +1567,8 @@ uicontrol('Parent', d, ...
             assignmentTitle = 'Final AATF Jet10 Design [Total Pts: 40 Score] |409581';
 
             % Write header (username-only export)
-            fprintf(fid, '"Username","%s","Feedback to Learner","Feedback Format","Grading Notes","Notes Format"\n', assignmentTitle);
+            % Column order must match Blackboard export: Username | Assignment score | Grading Notes | Notes Format | Feedback to Learner | Feedback Format
+            fprintf(fid, '"Username","%s","Grading Notes","Notes Format","Feedback to Learner","Feedback Format"\n', assignmentTitle);
 
             for i = 1:numel(files)
                 fname = files(i).name;
@@ -1592,8 +1598,8 @@ uicontrol('Parent', d, ...
                 fbText = strrep(fbText, '"', '&quot;');
                 fbText = strrep(fbText, newline, '<br>');
 
-                % Write row
-                fprintf(fid, '"%s","%.1f","%s","%s","",""\n', ...
+                % Write row: Username | Score | Grading Notes | Notes Format | Feedback | Feedback Format
+                fprintf(fid, '"%s","%.1f","","","%s","%s"\n', ...
                     username, score, fbText, 'SMART_TEXT');
             end
 
