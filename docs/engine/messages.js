@@ -56,7 +56,7 @@ export const STRINGS = {
     aspectRatioPcs: "Pitch control surface aspect ratio (%.2f) must be lower than wing aspect ratio (%.2f).",
     aspectRatioVt: "Vertical tail aspect ratio (%.2f) must be lower than wing aspect ratio (%.2f).",
     fuselageWidth: "Fuselage minimum width (%.2f ft) must exceed engine diameter + 0.5 ft (%.2f ft).",
-    tipOverhang: "%s extends %.2f ft beyond the fuselage end (limit %.2f ft).",
+    tipOverhang: "%s extends %.2f ft beyond the fuselage end (limit %.2f ft), insufficient fuselage strength. Move tail forward, reduce sweep, reduce tail AR, or increase fuselage width.",
     engineProtrusion: "Engine nacelles protrude %.2f ft past the fuselage end (limit %.2f ft).",
     surfaceNames: {
       pcs: "Pitch control surface",

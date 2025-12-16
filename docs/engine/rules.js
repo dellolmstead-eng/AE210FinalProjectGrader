@@ -1,6 +1,6 @@
 export const RULES = {
   versionLabel: "Final Project Grader 2025 v2.0",
-  matlabVersion: "Final_project_autograde_Olmstead_Fall_2025_v01",
+  matlabVersion: "Final_project_autograde_Olmstead_Fall_2025_v02",
   sheets: {
     Aero: {
       fallbackCells: ["G3", "G4", "G10", "G11", "A15", "A16"],
