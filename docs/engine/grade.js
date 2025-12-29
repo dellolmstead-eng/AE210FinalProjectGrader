@@ -111,7 +111,14 @@ function checkMissionProfile(main, radius, betaExpected) {
         missionErrors += 1;
       }
     }
-    if (leg === combatCol || leg === loiterCol) {
+    if (leg === combatCol) {
+      const expected = timeExpected[leg];
+      if (time[i] < expected - TOL.time) {
+        feedback.push(`Leg ${leg} Time must be >= ${expected.toFixed(2)} min (found ${roundToTenth(time[i])})`);
+        missionErrors += 1;
+      }
+    }
+    if (leg === loiterCol) {
       const expected = timeExpected[leg];
       if (Math.abs(time[i] - expected) > TOL.time) {
         feedback.push(`Leg ${leg} Time must be ${expected.toFixed(2)} min (found ${roundToTenth(time[i])})`);
