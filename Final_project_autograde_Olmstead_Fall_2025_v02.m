@@ -315,55 +315,55 @@ timeLeg = MissionArray(7, colIdx);
 missionErrors = 0;
 
 if abs(alt(1)) > altTol || abs(ab(1) - 100) > tol
-    logText = logf(logText, 'Leg 1: Altitude must be 0 ft and AB = 100%%\n');
+    logText = logf(logText, 'Leg 1: Altitude must be 0 ft and AB = 100%% (found alt=%.1f, AB=%.1f)\n', alt(1), ab(1));
     missionErrors = missionErrors + 1;
 end
 
 if alt(2) < min(alt(1), alt(3)) - altTol || alt(2) > max(alt(1), alt(3)) + altTol
-    logText = logf(logText, 'Leg 2: Altitude must remain between legs 1 and 3\n');
+    logText = logf(logText, 'Leg 2: Altitude must remain between legs 1 and 3 (found alt2=%.1f, alt1=%.1f, alt3=%.1f)\n', alt(2), alt(1), alt(3));
     missionErrors = missionErrors + 1;
 end
 if mach(2) < min(mach(1), mach(3)) - machTol || mach(2) > max(mach(1), mach(3)) + machTol
-    logText = logf(logText, 'Leg 2: Mach must remain between legs 1 and 3\n');
+    logText = logf(logText, 'Leg 2: Mach must remain between legs 1 and 3 (found mach2=%.2f, mach1=%.2f, mach3=%.2f)\n', mach(2), mach(1), mach(3));
     missionErrors = missionErrors + 1;
 end
 if abs(ab(2)) > tol
-    logText = logf(logText, 'Leg 2: AB must be 0%%\n');
+    logText = logf(logText, 'Leg 2: AB must be 0%% (found AB=%.1f)\n', ab(2));
     missionErrors = missionErrors + 1;
 end
 
 if alt(3) < 35000 - altTol || abs(mach(3) - 0.9) > machTol || abs(ab(3)) > tol
-    logText = logf(logText, 'Leg 3: Must be >= 35,000 ft, Mach = 0.9, AB = 0%%\n');
+    logText = logf(logText, 'Leg 3: Must be >= 35,000 ft, Mach = 0.9, AB = 0%% (found alt=%.1f, mach=%.2f, AB=%.1f)\n', alt(3), mach(3), ab(3));
     missionErrors = missionErrors + 1;
 end
 
 if alt(4) < 35000 - altTol || abs(mach(4) - 0.9) > machTol || abs(ab(4)) > tol
-    logText = logf(logText, 'Leg 4: Must be >= 35,000 ft, Mach = 0.9, AB = 0%%\n');
+    logText = logf(logText, 'Leg 4: Must be >= 35,000 ft, Mach = 0.9, AB = 0%% (found alt=%.1f, mach=%.2f, AB=%.1f)\n', alt(4), mach(4), ab(4));
     missionErrors = missionErrors + 1;
 end
 
 if alt(5) < 35000 - altTol || abs(mach(5) - ConstraintsMach) > machTol || abs(ab(5)) > tol || dist(5) < 150 - distTol
-    logText = logf(logText, 'Leg 5: Must be >= 35,000 ft, Mach = constraint Supercruise Mach (Main!U4), AB = 0%%, Distance >= 150 nm\n');
+    logText = logf(logText, 'Leg 5: Must be >= 35,000 ft, Mach = constraint Supercruise Mach (Main!U4), AB = 0%%, Distance >= 150 nm (found alt=%.1f, mach=%.2f, AB=%.1f, dist=%.1f)\n', alt(5), mach(5), ab(5), dist(5));
     missionErrors = missionErrors + 1;
 end
 
-if alt(6) < 30000 - altTol || mach(6) < 1.2 - machTol || abs(ab(6) - 100) > tol || timeLeg(6) < 2 - timeTol
-    logText = logf(logText, 'Leg 6: Must be >= 30,000 ft, Mach >= 1.2, AB = 100%%, Time >= 2 min\n');
+if abs(alt(6) - 30000) > altTol || mach(6) < 1.2 - machTol || abs(ab(6) - 100) > tol || timeLeg(6) < 2 - timeTol
+    logText = logf(logText, 'Leg 6: Must be >= 30,000 ft, Mach >= 1.2, AB = 100%%, Time >= 2 min (found alt=%.1f, mach=%.2f, AB=%.1f, time=%.2f)\n', alt(6), mach(6), ab(6), timeLeg(6));
     missionErrors = missionErrors + 1;
 end
 
 if alt(7) < 35000 - altTol || abs(mach(7) - ConstraintsMach) > machTol || abs(ab(7)) > tol || dist(7) < 150 - distTol
-    logText = logf(logText, 'Leg 7: Must be >= 35,000 ft, Mach = constraint Supercruise Mach (Main!U4), AB = 0%%, Distance >= 150 nm\n');
+    logText = logf(logText, 'Leg 7: Must be >= 35,000 ft, Mach = constraint Supercruise Mach (Main!U4), AB = 0%%, Distance >= 150 nm (found alt=%.1f, mach=%.2f, AB=%.1f, dist=%.1f)\n', alt(7), mach(7), ab(7), dist(7));
     missionErrors = missionErrors + 1;
 end
 
 if alt(8) < 35000 - altTol || abs(mach(8) - 0.9) > machTol || abs(ab(8)) > tol
-    logText = logf(logText, 'Leg 8: Must be >= 35,000 ft, Mach = 0.9, AB = 0%%\n');
+    logText = logf(logText, 'Leg 8: Must be >= 35,000 ft, Mach = 0.9, AB = 0%% (found alt=%.1f, mach=%.2f, AB=%.1f)\n', alt(8), mach(8), ab(8));
     missionErrors = missionErrors + 1;
 end
 
 if abs(alt(9) - 10000) > altTol || abs(mach(9) - 0.4) > machTol || abs(ab(9)) > tol || abs(timeLeg(9) - 20) > timeTol
-    logText = logf(logText, 'Leg 9: Must be 10,000 ft, Mach = 0.4, AB = 0%%, Time = 20 min\n');
+    logText = logf(logText, 'Leg 9: Must be 10,000 ft, Mach = 0.4, AB = 0%%, Time = 20 min (found alt=%.1f, mach=%.2f, AB=%.1f, time=%.2f)\n', alt(9), mach(9), ab(9), timeLeg(9));
     missionErrors = missionErrors + 1;
 end
 

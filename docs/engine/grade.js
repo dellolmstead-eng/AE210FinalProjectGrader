@@ -99,9 +99,11 @@ function checkMissionProfile(main, radius, betaExpected) {
       missionErrors += 1;
     }
     if (leg !== 1 && Math.abs(mach[i] - machExpected[i]) > TOL.mach) {
+      feedback.push(`Leg ${leg} Mach must be ${machExpected[i].toFixed(2)} (found ${roundToTenth(mach[i])})`);
       missionErrors += 1;
     }
     if (leg !== 14 && Math.abs(ab[i] - abExpected[i]) > TOL.eq) {
+      feedback.push(`Leg ${leg} AB must be ${abExpected[i].toFixed(0)} (found ${roundToTenth(ab[i])})`);
       missionErrors += 1;
     }
     if (supercruiseCols.has(leg)) {

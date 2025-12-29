@@ -196,10 +196,8 @@ export function runConstraintChecks(workbook) {
       ? Math.round(aim9Raw)
       : null;
   if (aim120Int == null || aim9Int == null) {
-    const invalidMsg =
-      STRINGS.constraint.payloadPenaltyInvalid || "Payload counts for AIM-120 and AIM-9 must be integers.";
-    feedback.push(invalidMsg);
     payloadPenalty -= 4;
+    feedback.push(format(STRINGS.constraint.payloadPenalty, aim120Raw));
   } else if (aim120Int < 8) {
     payloadPenalty -= 4;
     feedback.push(format(STRINGS.constraint.payloadPenalty, aim120Int));
