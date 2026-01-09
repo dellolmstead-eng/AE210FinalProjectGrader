@@ -1,4 +1,5 @@
 import { getCell, asNumber } from "./parseUtils.js";
+import { pchip } from "./pchip.js";
 import { runStealthChecks } from "./rules/stealth.js";
 
 // Utility: convert zero-based row/col to Excel ref
@@ -426,28 +427,9 @@ function checkConstraints(main, consts, betaExpected) {
     ];
     const WS_design = asNumber(main?.[12]?.[15]);
     const TW_design = asNumber(main?.[12]?.[16]);
-    const interp = (xList, yList, x) => {
-      const pairs = xList
-        .map((v, idx) => ({ x: asNumber(v), y: asNumber(yList[idx]) }))
-        .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
-        .sort((a, b) => a.x - b.x);
-      if (pairs.length === 0) return null;
-      if (x <= pairs[0].x) return pairs[0].y;
-      if (x >= pairs[pairs.length - 1].x) return pairs[pairs.length - 1].y;
-      for (let i = 0; i < pairs.length - 1; i += 1) {
-        const p0 = pairs[i];
-        const p1 = pairs[i + 1];
-        if (x >= p0.x && x <= p1.x) {
-          const slope = (p1.y - p0.y) / (p1.x - p0.x);
-          return p0.y + slope * (x - p0.x);
-        }
-      }
-      return null;
-    };
-
     rows.forEach(({ row, label }) => {
       const TW_curve = (consts?.[row - 1] ?? []).slice(10, 31).map(asNumber);
-      const est = interp(WS_axis, TW_curve, WS_design);
+      const est = pchip(WS_axis, TW_curve, WS_design);
       if (est !== null && Number.isFinite(TW_design) && TW_design < est - TOL.eq) {
         curveFailures += 1;
         failedCurves.push(label);
