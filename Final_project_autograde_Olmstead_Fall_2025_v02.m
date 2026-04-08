@@ -209,7 +209,7 @@ Consts = sheets.Consts;
 Gear = sheets.Gear;
 Geom = sheets.Geom;
 
-pt = 40;
+pt = 45;
 logText = "";
 bonusPoints = 0;
 
@@ -1045,8 +1045,8 @@ elseif abs(numaircraft - 800) < 1e-3
     elseif cost > 75 + tol
         costDeduction = 5;
         logText = logf(logText, '-5 pts Recurring cost exceeds threshold ($75M): $%.1fM\n', cost);
-    elseif cost <= 63 + tol
-        logText = logf(logText, 'Recurring cost meets objective (<= $63M) [+1 bonus]: $%.1fM\n', cost);
+    elseif cost <= 61 + tol
+        logText = logf(logText, 'Recurring cost meets objective (<= $61M) [+1 bonus]: $%.1fM\n', cost);
     end
 else
     costDeduction = 5;
@@ -1061,9 +1061,9 @@ end
 gearFailures = 0;
 
 g90 = Gear(20, 10);
-if isnan(g90) || g90 < 80 - tol || g90 > 95 + tol
+if isnan(g90) || g90 < 80 - tol || g90 > 90.5 + tol
     gearFailures = gearFailures + 1;
-    logText = logf(logText, 'Violates nose gear 90/10 rule: %.1f%% (must be between 80%% and 95%%)\n', g90);
+    logText = logf(logText, 'Violates main gear 90/10 rule share at J20: %.1f%% (must be between 80.0%% and 90.5%%)\n', g90);
 end
 
 tipbackActual = Gear(20, 12);
@@ -1232,7 +1232,7 @@ if ~isnan(cost)
             end
         end
     elseif abs(numaircraft - 800) < 1e-3
-        costBonusRaw = linearBonusInv(cost, 75, 63);
+        costBonusRaw = linearBonusInv(cost, 75, 61);
         costBonus = roundToTenth(costBonusRaw);
         if costBonus > 0
             bonusPoints = bonusPoints + costBonus;
@@ -1246,7 +1246,7 @@ end
 bonusPoints = roundToTenth(bonusPoints);
 pt = roundToTenth(baseScore + bonusPoints);
 
-logText = logf(logText, 'Jet11 base score: %d out of 40\n', baseScore);
+logText = logf(logText, 'Jet11 base score: %d out of 45\n', baseScore);
 logText = logf(logText, 'Bonus points: +%.1f (final score %.1f)\n', bonusPoints, pt);
 
 % Clean up formatting: trim lines, drop empties, join with single newlines
@@ -1564,7 +1564,7 @@ uicontrol('Parent', d, ...
             fid = fopen(csvFilename, 'w');
 
             % Assignment title column (update if needed)
-            assignmentTitle = 'Final AATF Jet10 Design [Total Pts: 40 Score] |409581';
+            assignmentTitle = 'Final AATF Jet10 Design [Total Pts: 45 Score] |409581';
 
             % Write header (username-only export)
             % Column order must match Blackboard export: Username | Assignment score | Grading Notes | Notes Format | Feedback to Learner | Feedback Format

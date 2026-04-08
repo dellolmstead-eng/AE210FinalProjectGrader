@@ -136,6 +136,5 @@ export function runStealthChecks(workbook) {
     feedback.push(format(STRINGS.stealth.deduction, deduction));
   }
 
-  // Stealth feedback is advisory; geometry deductions are handled in attachments.
-  return { delta: 0, feedback };
+  return { failures, deduction, feedback };
 }

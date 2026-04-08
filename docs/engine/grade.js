@@ -23,8 +23,8 @@ const TOL = {
 };
 
 const BETA_DEFAULT = 0.87620980519917;
-const BASE_TOTAL = 85;
-const OBJECTIVE_TOTAL = 15;
+const BASE_TOTAL = 45;
+const OBJECTIVE_TOTAL = 11;
 
 const roundToTenth = (value) => (Number.isFinite(value) ? Math.round(value * 10) / 10 : 0);
 const ternary = (cond, a, b) => (cond ? a : b);
@@ -133,13 +133,13 @@ function checkMissionProfile(main, radius, betaExpected) {
   let rangePass = false;
   let rangeObjectivePass = false;
   if (Number.isFinite(radius)) {
-    if (radius >= 800 - TOL.dist) {
+    if (radius >= 410 - TOL.dist) {
       rangePass = true;
       rangeObjectivePass = true;
-    } else if (radius >= 500 - TOL.dist) {
+    } else if (radius >= 375 - TOL.dist) {
       rangePass = true;
     } else {
-      feedback.push(`Range below threshold: mission radius = ${roundToTenth(radius)} nm (needs >= 500 nm)`);
+      feedback.push(`Mission radius below threshold (375 nm): ${roundToTenth(radius)}`);
       missionErrors += 1;
     }
   } else {
@@ -148,7 +148,7 @@ function checkMissionProfile(main, radius, betaExpected) {
   }
 
   const missionPass = missionErrors === 0;
-  return { feedback, missionPass, rangePass, rangeObjectivePass, betaExpected };
+  return { feedback, missionPass, missionErrors, rangePass, rangeObjectivePass, betaExpected };
 }
 
 function checkEfficiency(main) {
@@ -381,8 +381,6 @@ function checkConstraints(main, consts, betaExpected) {
 
   rowCheck("MaxMach", 3, { alt: 35000, mach: 2.0, n: 1, ab: 100, ps: 0, cdx: 0 });
   rowCheck("CruiseMach", 4, { alt: 35000, mach: 1.5, n: 1, ab: 0, ps: 0, cdx: 0 });
-
-  rowCheck("Supercruise", 5, { alt: 50000, mach: 1.5, n: 1, ab: 100, ps: 0, cdx: 0 });
   rowCheck("Cmbt Turn1", 6, { alt: 30000, mach: 1.2, n: 3.0, ab: 100, ps: 0, cdx: 0 });
   rowCheck("Cmbt Turn2", 7, { alt: 10000, mach: 0.9, n: 4.0, ab: 100, ps: 0, cdx: 0 });
   rowCheck("Ps1", 8, { alt: 30000, mach: 1.15, n: 1, ab: 100, ps: 400, cdx: 0 });
@@ -453,7 +451,18 @@ function checkConstraints(main, consts, betaExpected) {
     fb.push(`Design did not meet the following constraint curves: ${failedCurves.join(", ")}.`);
   }
 
-  return { pass: tableErrors === 0 && curveFailures === 0, feedback: fb };
+  const objectiveFlags = {
+    maxMach: Number.isFinite(asNumber(main?.[2]?.[20])) && asNumber(main?.[2]?.[20]) >= 2.2 - TOL.mach,
+    supercruise: Number.isFinite(asNumber(main?.[3]?.[20])) && asNumber(main?.[3]?.[20]) >= 1.8 - TOL.mach,
+    gHigh: Number.isFinite(asNumber(main?.[5]?.[21])) && asNumber(main?.[5]?.[21]) >= 4.0 - TOL.eq,
+    gLow: Number.isFinite(asNumber(main?.[6]?.[21])) && asNumber(main?.[6]?.[21]) >= 4.5 - TOL.eq,
+    psHigh: Number.isFinite(asNumber(main?.[7]?.[23])) && asNumber(main?.[7]?.[23]) >= 500 - TOL.eq,
+    psLow: Number.isFinite(asNumber(main?.[8]?.[23])) && asNumber(main?.[8]?.[23]) >= 500 - TOL.eq,
+    takeoff: Number.isFinite(takeoffDist) && takeoffDist <= 2500 + TOL.dist,
+    landing: Number.isFinite(landingDist) && landingDist <= 3500 + TOL.dist,
+  };
+
+  return { pass: tableErrors === 0 && curveFailures === 0, tableErrors, curveFailures, objectiveFlags, feedback: fb };
 }
 
 function checkPayload(main) {
@@ -497,7 +506,7 @@ function checkStability(main) {
     failures += 1;
   }
   if (failures > 0) fb.push(`Stability criteria failed in ${failures} area(s).`);
-  return { pass: failures === 0, feedback: fb };
+  return { pass: failures === 0, failures, feedback: fb };
 }
 
 function checkFuelVolume(main) {
@@ -524,17 +533,32 @@ function checkCost(main) {
   const cost = getNumber(main, "Q31");
   let costPass = false;
   let costObjectivePass = false;
-  if (!Number.isFinite(numaircraft) || Math.abs(numaircraft - 187) > 1e-3) {
-    fb.push(`Number of aircraft (N31) must be 187 to evaluate cost thresholds (found ${roundToTenth(numaircraft)}).`);
-  } else if (!Number.isFinite(cost)) {
-    fb.push("Recurring cost missing for 187-aircraft estimate.");
-  } else {
-    if (cost < 120 + TOL.eq) {
-      costPass = true;
+  if (!Number.isFinite(numaircraft)) {
+    fb.push(`Number of aircraft (N31) must be 187 or 800 (found ${roundToTenth(numaircraft)}).`);
+  } else if (Math.abs(numaircraft - 187) < 1e-3) {
+    if (!Number.isFinite(cost)) {
+      fb.push("Recurring cost missing for 187-aircraft estimate.");
     } else {
-      fb.push(`Cost above threshold: $${roundToTenth(cost)}M for 187 aircraft (needs <$120M).`);
+      if (cost <= 115 + TOL.eq) {
+        costPass = true;
+      } else {
+        fb.push(`Recurring cost exceeds threshold ($115M): $${roundToTenth(cost)}M`);
+      }
+      if (cost <= 100 + TOL.eq) costObjectivePass = true;
     }
-    if (cost < 110 + TOL.eq) costObjectivePass = true;
+  } else if (Math.abs(numaircraft - 800) < 1e-3) {
+    if (!Number.isFinite(cost)) {
+      fb.push("Recurring cost missing for 800-aircraft estimate.");
+    } else {
+      if (cost <= 75 + TOL.eq) {
+        costPass = true;
+      } else {
+        fb.push(`Recurring cost exceeds threshold ($75M): $${roundToTenth(cost)}M`);
+      }
+      if (cost <= 61 + TOL.eq) costObjectivePass = true;
+    }
+  } else {
+    fb.push(`Number of aircraft (N31) must be 187 or 800 (found ${roundToTenth(numaircraft)}).`);
   }
   return { costPass, costObjectivePass, feedback: fb };
 }
@@ -543,9 +567,9 @@ function checkGear(gear) {
   const fb = [];
   let failures = 0;
   const g90 = asNumber(gear?.[19]?.[9]); // J20
-  if (!Number.isFinite(g90) || g90 < 80 - TOL.eq || g90 > 95 + TOL.eq) {
+  if (!Number.isFinite(g90) || g90 < 80 - TOL.eq || g90 > 90.5 + TOL.eq) {
     failures += 1;
-    fb.push(`Violates nose gear 90/10 rule: ${roundToTenth(g90)}% (must be between 80% and 95%)`);
+    fb.push(`Violates main gear 90/10 rule share at J20: ${roundToTenth(g90)}% (must be between 80.0% and 90.5%)`);
   }
 
   const tipbackActual = asNumber(gear?.[19]?.[11]);
@@ -566,12 +590,8 @@ function checkGear(gear) {
   const rotationRef = asNumber(gear?.[20]?.[13]);
   if (!Number.isFinite(rotationSpeed)) {
     failures += 1;
-    fb.push("Takeoff rotation speed (N20) missing; must be <200 kts and below N21.");
+    fb.push("Takeoff rotation speed (N20) missing; N20 must be less than N21.");
   } else {
-    if (rotationSpeed >= 200 - TOL.eq) {
-      failures += 1;
-      fb.push(`Violates takeoff rotation speed: N20 = ${roundToTenth(rotationSpeed)} kts (must be < 200 kts)`);
-    }
     if (!Number.isFinite(rotationRef)) {
       failures += 1;
       fb.push("Takeoff speed margin failed: N21 missing; N20 must be below N21.");
@@ -580,9 +600,9 @@ function checkGear(gear) {
         failures += 1;
         fb.push(`Takeoff speed margin failed: N20 must be less than N21 (N20 = ${roundToTenth(rotationSpeed)}, N21 = ${roundToTenth(rotationRef)})`);
       }
-      if (rotationRef > 200 + TOL.eq) {
+      if (rotationRef >= 200 - TOL.eq) {
         failures += 1;
-        fb.push(`Takeoff speed too high: N21 = ${roundToTenth(rotationRef)} kts (must be <= 200 kts).`);
+        fb.push(`Takeoff speed too high: N21 = ${roundToTenth(rotationRef)} kts (must be < 200 kts).`);
       }
     }
   }
@@ -598,7 +618,7 @@ export function gradeWorkbook(workbook) {
   const invalidCells = checkInvalidMainCells(workbook.sheets?.main ?? []);
   if (invalidCells.length > 0) {
     const msg = `Invalid for analysis: Excel errors in Main sheet at ${invalidCells.join(", ")}. Correct the errors and resubmit.`;
-    return { score: 0, maxScore: 100, scoreLine: msg, bonusLine: "", feedbackLog: msg };
+    return { score: 0, maxScore: BASE_TOTAL, scoreLine: msg, bonusLine: "", feedbackLog: msg };
   }
 
   const main = workbook.sheets.main;
@@ -614,7 +634,7 @@ export function gradeWorkbook(workbook) {
   if (missingGeom.length > 0) {
     const msg = `Sheet validation: Geometry inputs must be numeric (missing at ${missingGeom.join(", ")}).`;
     const log = [feedback[0] ?? "", msg].filter(Boolean).join("\n");
-    return { score: 0, maxScore: 100, scoreLine: msg, bonusLine: "", feedbackLog: log };
+    return { score: 0, maxScore: BASE_TOTAL, scoreLine: msg, bonusLine: "", feedbackLog: log };
   }
 
   const fuel_available = getNumber(main, "O18");
@@ -637,7 +657,6 @@ export function gradeWorkbook(workbook) {
   feedback.push(...mission.feedback);
 
   const efficiency = checkEfficiency(main);
-  feedback.push(...efficiency.feedback);
 
   const thrust = checkThrust(miss);
   feedback.push(...thrust.feedback);
@@ -664,76 +683,60 @@ export function gradeWorkbook(workbook) {
   feedback.push(...gearResult.feedback);
 
   const stealthResult = runStealthChecks(workbook);
-  const stealthPass = stealthResult.feedback.length === 0;
+  const stealthPass = stealthResult.failures === 0;
   feedback.push(...stealthResult.feedback);
 
-  // Scoring buckets
   let pt = BASE_TOTAL;
-  const constraintsBucketPass =
-    constraints.pass && payload.payloadPass && efficiency.pass && thrust.pass && missingGeom.length === 0;
-  const geometryBucketPass = control.pass && stability.pass;
-  const stealthBucketPass = stealthPass;
-
-  if (!constraintsBucketPass) pt -= 5;
-  if (!mission.rangePass) pt -= 5;
-  if (!geometryBucketPass) pt -= 5;
-  if (!gearResult.pass) pt -= 5;
-  if (!fuelVolume.fuelPass) pt -= 5;
-  if (!fuelVolume.volumePass) pt -= 5;
-  if (!stealthBucketPass) pt -= 5;
+  if (!thrust.pass) pt -= 3;
+  if (!mission.missionPass) pt -= Math.min(2, mission.missionErrors);
+  if (constraints.tableErrors > 0) pt -= Math.min(2, constraints.tableErrors);
+  if (constraints.curveFailures === 1) pt -= 4;
+  else if (constraints.curveFailures >= 2) pt -= 8;
+  if (!payload.payloadPass) pt -= 4;
+  if (!control.pass) pt -= Math.min(2, control.failures);
+  if (!stability.pass) pt -= Math.min(3, stability.failures);
+  if (!fuelVolume.fuelPass) pt -= 2;
+  if (!fuelVolume.volumePass) pt -= 2;
+  if (!costResult.costPass) pt -= 5;
+  if (!gearResult.pass) pt -= Math.min(4, gearResult.failures);
+  pt -= stealthResult.deduction;
 
   pt = Math.max(0, pt);
 
   let objectiveScore = 0;
-  if (mission.rangeObjectivePass) objectiveScore += 5;
-  if (costResult.costObjectivePass) objectiveScore += 5;
-  if (payload.payloadObjectivePass) objectiveScore += 5;
+  if (mission.rangeObjectivePass) objectiveScore += 1;
+  if (payload.payloadObjectivePass) objectiveScore += 1;
+  if (constraints.objectiveFlags.takeoff) objectiveScore += 1;
+  if (constraints.objectiveFlags.landing) objectiveScore += 1;
+  if (constraints.objectiveFlags.maxMach) objectiveScore += 1;
+  if (constraints.objectiveFlags.supercruise) objectiveScore += 1;
+  if (constraints.objectiveFlags.psHigh) objectiveScore += 1;
+  if (constraints.objectiveFlags.psLow) objectiveScore += 1;
+  if (constraints.objectiveFlags.gHigh) objectiveScore += 1;
+  if (constraints.objectiveFlags.gLow) objectiveScore += 1;
+  if (costResult.costObjectivePass) objectiveScore += 1;
 
   const thresholdScore = roundToTenth(pt);
   objectiveScore = roundToTenth(objectiveScore);
   pt = roundToTenth(thresholdScore + objectiveScore);
 
-  const missing = [];
-  if (!constraintsBucketPass) missing.push("constraints/payload/efficiency/Tavail/sheet validity");
-  if (!mission.rangePass) missing.push("range");
-  if (!geometryBucketPass) missing.push("geometry (controls/stability)");
-  if (!gearResult.pass) missing.push("landing gear");
-  if (!fuelVolume.fuelPass) missing.push("fuel");
-  if (!fuelVolume.volumePass) missing.push("volume remaining");
-  if (!stealthBucketPass) missing.push("stealth shaping");
-  if (!mission.missionPass) missing.push("mission table (no deduction)");
-
-  const bucketSummary = [
-    "Bucket summary:",
-    `  Constraints: ${ternary(constraintsBucketPass, "PASS", "FAIL (-5)")}`,
-    `  Range: ${ternary(mission.rangePass, "PASS", "FAIL (-5)")}`,
-    `  Geometry: ${ternary(geometryBucketPass, "PASS", "FAIL (-5)")}`,
-    `  Gear: ${ternary(gearResult.pass, "PASS", "FAIL (-5)")}`,
-    `  Fuel: ${ternary(fuelVolume.fuelPass, "PASS", "FAIL (-5)")}`,
-    `  Volume: ${ternary(fuelVolume.volumePass, "PASS", "FAIL (-5)")}`,
-    `  Stealth: ${ternary(stealthBucketPass, "PASS", "FAIL (-5)")}`,
-    `Objectives: Range ${ternary(mission.rangeObjectivePass, "PASS", "FAIL")}, Cost ${ternary(
-      costResult.costObjectivePass,
-      "PASS",
-      "FAIL"
-    )}, Payload ${ternary(payload.payloadObjectivePass, "PASS", "FAIL")} => +${objectiveScore.toFixed(1)} / ${OBJECTIVE_TOTAL}`,
-  ].join("\n");
-
-  const scoreSummary = [`Threshold score after deductions: ${thresholdScore.toFixed(1)} / ${BASE_TOTAL}`, `Final score: ${pt.toFixed(1)} / 100`];
-
-  if (missing.length > 0) {
-    feedback.push(`Checks not met: ${missing.join(", ")}`);
+  if (!efficiency.pass) {
+    feedback.push("Advisory: non-rubric efficiency constants differ in O1/Q1/C30/D30.");
   }
-  feedback.push(bucketSummary);
+
+  const scoreSummary = [
+    `Jet11 base score: ${thresholdScore.toFixed(1)} out of ${BASE_TOTAL}`,
+    `Bonus points: +${objectiveScore.toFixed(1)} (final score ${pt.toFixed(1)})`,
+  ];
   feedback.push(...scoreSummary);
 
   const feedbackLog = feedback.join("\n");
 
   return {
     score: pt,
-    maxScore: 100,
-    scoreLine: scoreSummary[1],
-    bonusLine: "",
+    maxScore: BASE_TOTAL,
+    scoreLine: scoreSummary[0],
+    bonusLine: scoreSummary[1],
     feedbackLog,
   };
 }

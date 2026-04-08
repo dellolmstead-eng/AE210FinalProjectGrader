@@ -81,17 +81,17 @@ export const STRINGS = {
     over187: "-5 pts Recurring cost exceeds threshold ($115M): $%.1fM",
     obj187: "Recurring cost meets objective (<= $100M) [+1 bonus]: $%.1fM",
     over800: "-5 pts Recurring cost exceeds threshold ($75M): $%.1fM",
-    obj800: "Recurring cost meets objective (<= $63M) [+1 bonus]: $%.1fM",
+    obj800: "Recurring cost meets objective (<= $61M) [+1 bonus]: $%.1fM",
   },
   gear: {
-    nose: "Violates nose gear 90/10 rule: %.1f%% (must be between 80% and 95%)",
+    nose: "Violates main gear 90/10 rule share at J20: %.1f%% (must be between 80.0% and 90.5%)",
     tipback: "Violates tipback angle requirement: upper %.2f° must be less than lower %.2f°",
     rollover: "Violates rollover angle requirement: upper %.2f° must be less than lower %.2f°",
     rotation: "Violates takeoff rotation speed: %.1f kts (must be < 200 kts)",
     deduction: "-%d pts Landing gear geometry outside limits",
   },
   summary: {
-    base: "Jet11 base score: %d out of 40",
+    base: "Jet11 base score: %d out of 45",
     bonus: "Bonus points: +%.1f (final score %.1f)",
   },
   stealth: {
