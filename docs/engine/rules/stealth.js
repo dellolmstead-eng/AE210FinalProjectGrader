@@ -6,6 +6,8 @@ import { getPlanformPoint, computeEdgeAngle, computePcsTrailingPlanformAngle, co
 const STEALTH_ANGLE_TOL = 5; // degrees
 const PCS_DIHEDRAL_THRESHOLD = 5; // degrees
 const VT_TILT_THRESHOLD = 85; // degrees
+const CORNER_REFLECTOR_TARGET = 45; // degrees
+const CORNER_REFLECTOR_TOL = 5; // degrees
 const EPS = 1e-6;
 
 const normalizeAngle = (angle) => {
@@ -35,7 +37,7 @@ const pointDifference = (a, b) => ({
   y: b.y - a.y,
 });
 
-const normalHitsCenterline = (tip, inner) => {
+const normalHitsCenterline = (tip, inner, fuselageLength) => {
   if (!Number.isFinite(tip.x) || !Number.isFinite(tip.y) || !Number.isFinite(inner.x) || !Number.isFinite(inner.y)) {
     return false;
   }
@@ -53,7 +55,7 @@ const normalHitsCenterline = (tip, inner) => {
       return false;
     }
     const x = tip.x + normal.x * t;
-    return Number.isFinite(x);
+    return Number.isFinite(x) && Number.isFinite(fuselageLength) && x >= -EPS && x <= fuselageLength + EPS;
   });
 };
 
@@ -62,6 +64,7 @@ export function runStealthChecks(workbook) {
   const geom = workbook.sheets.geom;
   const feedback = [];
   let failures = 0;
+  const fuselageLength = asNumber(getCell(main, "B32"));
 
   const wingArea = asNumber(getCell(main, "B18"));
   const pcsArea = asNumber(getCell(main, "C18"));
@@ -76,11 +79,13 @@ export function runStealthChecks(workbook) {
   const wingTipTE = getPlanformPoint(geom, 40);
   const wingCenterTE = getPlanformPoint(geom, 41);
   const wingTrailingAngle = computeWingTrailingPlanformAngle(geom);
+  const wingDihedral = asNumber(getCell(main, "B27"));
 
   const pcsLeadingAngle = computeEdgeAngle(geom, 115, 116);
   const pcsTipTE = getPlanformPoint(geom, 117);
   const pcsInnerTE = getPlanformPoint(geom, 118);
   const pcsTrailingAngle = computePcsTrailingPlanformAngle(geom);
+  const pcsTilt = asNumber(getCell(main, "C27"));
   const pcsDihedral = asNumber(getCell(main, "C26"));
   const pcsZ = asNumber(getCell(main, "C25"));
 
@@ -101,13 +106,26 @@ export function runStealthChecks(workbook) {
     failures += 1;
   };
 
+  const checkCornerReflector = (angle, isActive, template) => {
+    if (!isActive || !Number.isFinite(angle)) {
+      return;
+    }
+    if (Math.abs(angle - CORNER_REFLECTOR_TARGET) <= CORNER_REFLECTOR_TOL) {
+      recordFailure(format(template, angle, CORNER_REFLECTOR_TOL, CORNER_REFLECTOR_TOL));
+    }
+  };
+
   if (pcsActive && wingActive && !areParallel(pcsLeadingAngle, wingLeadingAngle)) {
     recordFailure(format(STRINGS.stealth.pcsSweep, pcsLeadingAngle, wingLeadingAngle, STEALTH_ANGLE_TOL));
   }
 
+  checkCornerReflector(wingDihedral, wingActive, STRINGS.stealth.wingCornerReflector);
+  checkCornerReflector(pcsTilt, pcsActive, STRINGS.stealth.pcsCornerReflector);
+  checkCornerReflector(vtTilt, vtActive, STRINGS.stealth.vtCornerReflector);
+
   const wingShielded =
     wingActive &&
-    (areParallel(wingTrailingAngle, wingLeadingAngle) || normalHitsCenterline(wingTipTE, wingCenterTE));
+    (areParallel(wingTrailingAngle, wingLeadingAngle) || normalHitsCenterline(wingTipTE, wingCenterTE, fuselageLength));
   if (!wingShielded) {
     recordFailure(format(STRINGS.stealth.wingTrailing, wingTrailingAngle, STEALTH_ANGLE_TOL));
   }
@@ -136,7 +154,7 @@ export function runStealthChecks(workbook) {
     if (areParallel(angle, wingLeadingAngle)) {
       return;
     }
-    if (allowCenterlineShielding && normalHitsCenterline(tipPoint, innerPoint)) {
+    if (allowCenterlineShielding && normalHitsCenterline(tipPoint, innerPoint, fuselageLength)) {
       return;
     }
     recordFailure(format(template, angle, wingLeadingAngle, STEALTH_ANGLE_TOL));
