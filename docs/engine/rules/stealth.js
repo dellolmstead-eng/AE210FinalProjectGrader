@@ -1,7 +1,7 @@
 import { STRINGS } from "../messages.js";
 import { getCell, asNumber } from "../parseUtils.js";
 import { format } from "../format.js";
-import { getPlanformPoint, computeEdgeAngle } from "../geomUtils.js";
+import { getPlanformPoint, computeEdgeAngle, computePcsTrailingPlanformAngle, computeWingTrailingPlanformAngle } from "../geomUtils.js";
 
 const STEALTH_ANGLE_TOL = 5; // degrees
 const PCS_DIHEDRAL_THRESHOLD = 5; // degrees
@@ -75,18 +75,26 @@ export function runStealthChecks(workbook) {
   const wingLeadingAngle = computeEdgeAngle(geom, 38, 39);
   const wingTipTE = getPlanformPoint(geom, 40);
   const wingCenterTE = getPlanformPoint(geom, 41);
-  const wingTrailingAngle = computeEdgeAngle(geom, 40, 41);
+  const wingTrailingAngle = computeWingTrailingPlanformAngle(geom);
 
   const pcsLeadingAngle = computeEdgeAngle(geom, 115, 116);
-  const pcsTrailingAngle = computeEdgeAngle(geom, 117, 118);
+  const pcsTipTE = getPlanformPoint(geom, 117);
+  const pcsInnerTE = getPlanformPoint(geom, 118);
+  const pcsTrailingAngle = computePcsTrailingPlanformAngle(geom);
   const pcsDihedral = asNumber(getCell(main, "C26"));
+  const pcsZ = asNumber(getCell(main, "C25"));
 
   const strakeLeadingAngle = computeEdgeAngle(geom, 152, 153);
   const strakeTrailingAngle = computeEdgeAngle(geom, 154, 155);
 
   const vtLeadingAngle = computeEdgeAngle(geom, 163, 164);
+  const vtTipTE = getPlanformPoint(geom, 165);
+  const vtInnerTE = getPlanformPoint(geom, 166);
   const vtTrailingAngle = computeEdgeAngle(geom, 165, 166);
   const vtTilt = asNumber(getCell(main, "H27"));
+  const vtZ = asNumber(getCell(main, "H25"));
+  const fuseZCenter = asNumber(getCell(main, "D52"));
+  const fuseZHeight = asNumber(getCell(main, "F52"));
 
   const recordFailure = (message) => {
     feedback.push(message);
@@ -112,9 +120,37 @@ export function runStealthChecks(workbook) {
     }
   };
 
+  const isWithinFuselageHeight = (componentZ) => (
+    Number.isFinite(componentZ) &&
+    Number.isFinite(fuseZCenter) &&
+    Number.isFinite(fuseZHeight) &&
+    componentZ >= fuseZCenter - fuseZHeight / 2 &&
+    componentZ <= fuseZCenter + fuseZHeight / 2
+  );
+
+  const checkTrailingPair = (angle, template, tipPoint, innerPoint, allowCenterlineShielding) => {
+    if (!Number.isFinite(angle) || !Number.isFinite(wingLeadingAngle)) {
+      recordFailure(STRINGS.stealth.missingGeom);
+      return;
+    }
+    if (areParallel(angle, wingLeadingAngle)) {
+      return;
+    }
+    if (allowCenterlineShielding && normalHitsCenterline(tipPoint, innerPoint)) {
+      return;
+    }
+    recordFailure(format(template, angle, wingLeadingAngle, STEALTH_ANGLE_TOL));
+  };
+
   if (pcsActive && Number.isFinite(pcsDihedral) && pcsDihedral > PCS_DIHEDRAL_THRESHOLD) {
     checkParallelPair(pcsLeadingAngle, STRINGS.stealth.pcsLeadingParallel);
-    checkParallelPair(pcsTrailingAngle, STRINGS.stealth.pcsTrailingParallel);
+    checkTrailingPair(
+      pcsTrailingAngle,
+      STRINGS.stealth.pcsTrailingParallel,
+      pcsTipTE,
+      pcsInnerTE,
+      isWithinFuselageHeight(pcsZ),
+    );
   }
 
   if (strakeActive) {
@@ -128,12 +164,19 @@ export function runStealthChecks(workbook) {
     recordFailure(STRINGS.stealth.missingGeom);
   } else if (vtTilt < VT_TILT_THRESHOLD) {
     checkParallelPair(vtLeadingAngle, STRINGS.stealth.vtLeadingParallel);
-    checkParallelPair(vtTrailingAngle, STRINGS.stealth.vtTrailingParallel);
+    checkTrailingPair(
+      vtTrailingAngle,
+      STRINGS.stealth.vtTrailingParallel,
+      vtTipTE,
+      vtInnerTE,
+      isWithinFuselageHeight(vtZ),
+    );
   }
 
   const deduction = Math.min(5, failures);
   if (deduction > 0) {
-    feedback.push(format(STRINGS.stealth.deduction, deduction));
+    feedback.unshift("Stealth shaping violations:");
+    feedback.push(`-${deduction} pts Stealth shaping issues detected.`);
   }
 
   return { failures, deduction, feedback };

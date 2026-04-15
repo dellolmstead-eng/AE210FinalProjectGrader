@@ -44,6 +44,36 @@ export function computeEdgeAngle(geom, startRow, endRow) {
   return Math.atan2(dy, dx) * DEG_PER_RAD;
 }
 
+export function computeWingTrailingPlanformAngle(geom) {
+  const xA = asNumber(getCell(geom, "L40"));
+  const xB = asNumber(getCell(geom, "L41"));
+  const halfSpan = asNumber(getCell(geom, "N44"));
+  if (!Number.isFinite(xA) || !Number.isFinite(xB) || !Number.isFinite(halfSpan)) {
+    return Number.NaN;
+  }
+  const dx = Math.abs(xA - xB);
+  const dy = Math.abs(halfSpan);
+  if (dx === 0 && dy === 0) {
+    return 0;
+  }
+  return Math.atan2(dx, dy) * DEG_PER_RAD;
+}
+
+export function computePcsTrailingPlanformAngle(geom) {
+  const xA = asNumber(getCell(geom, "L117"));
+  const xB = asNumber(getCell(geom, "L118"));
+  const halfSpan = asNumber(getCell(geom, "N121"));
+  if (!Number.isFinite(xA) || !Number.isFinite(xB) || !Number.isFinite(halfSpan)) {
+    return Number.NaN;
+  }
+  const dx = Math.abs(xA - xB);
+  const dy = Math.abs(halfSpan);
+  if (dx === 0 && dy === 0) {
+    return 0;
+  }
+  return Math.atan2(dx, dy) * DEG_PER_RAD;
+}
+
 export function getChordLength(geom, leadingRow, trailingRow) {
   const leading = getPlanformPoint(geom, leadingRow, { absoluteY: false });
   const trailing = getPlanformPoint(geom, trailingRow, { absoluteY: false });

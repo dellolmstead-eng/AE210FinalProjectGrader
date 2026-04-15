@@ -1,5 +1,5 @@
 export const RULES = {
-  versionLabel: "Final Project Grader 2025 v2.1",
+  versionLabel: "Final Project Grader 2025 v3.0",
   matlabVersion: "Final_project_autograde_Olmstead_Fall_2025_v02",
   scoringReference:
     "Final Project web scoring must match Final_project_autograde_Olmstead_Fall_2025_v02.m exactly. Do not copy Final Exam values or point maps into this repo.",
@@ -57,7 +57,7 @@ export const RULES = {
       fallbackCells: ["J20", "L20", "L21", "M20", "M21", "N20", "N21"],
     },
     Geom: {
-      fallbackCells: ["C8", "C10", "M152", "K15", "L155", "L38"],
+      fallbackCells: ["C8", "C10", "M152", "K15", "L155", "L38", "L40", "L41", "N44", "L117", "L118", "N121"],
     },
   },
   macroWarningText:

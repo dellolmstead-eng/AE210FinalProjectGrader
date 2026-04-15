@@ -347,8 +347,12 @@ if alt(5) < 35000 - altTol || abs(mach(5) - ConstraintsMach) > machTol || abs(ab
     missionErrors = missionErrors + 1;
 end
 
-if abs(alt(6) - 30000) > altTol || mach(6) < 1.2 - machTol || abs(ab(6) - 100) > tol || timeLeg(6) < 2 - timeTol
-    logText = logf(logText, 'Leg 6: Must be >= 30,000 ft, Mach >= 1.2, AB = 100%%, Time >= 2 min (found alt=%.1f, mach=%.2f, AB=%.1f, time=%.2f)\n', alt(6), mach(6), ab(6), timeLeg(6));
+if alt(6) < 30000 - altTol || mach(6) < 1.2 - machTol || abs(ab(6) - 100) > tol
+    logText = logf(logText, 'Leg 6: Must be >= 30,000 ft, Mach >= 1.2, AB = 100%% (found alt=%.1f, mach=%.2f, AB=%.1f)\n', alt(6), mach(6), ab(6));
+    missionErrors = missionErrors + 1;
+end
+if Main(39, 28) < 720
+    logText = logf(logText, 'Two full 360 turns are required. Increase total turn angle (cell AB39) to 720 degrees or greater to meet the combat turn requirement\n');
     missionErrors = missionErrors + 1;
 end
 
@@ -563,9 +567,9 @@ stealthFailures = 0;
 stealthHeaderLogged = false;
 
 wingLeadingAngle = computeEdgeAngleDeg(Geom, 38, 39);
-wingTrailingAngle = computeEdgeAngleDeg(Geom, 40, 41);
+wingTrailingAngle = computeWingTrailingPlanformAngleDeg(Geom);
 pcsLeadingAngle = computeEdgeAngleDeg(Geom, 115, 116);
-pcsTrailingAngle = computeEdgeAngleDeg(Geom, 117, 118);
+pcsTrailingAngle = computePcsTrailingPlanformAngleDeg(Geom);
 strakeLeadingAngle = computeEdgeAngleDeg(Geom, 152, 153);
 strakeTrailingAngle = computeEdgeAngleDeg(Geom, 154, 155);
 vtLeadingAngle = computeEdgeAngleDeg(Geom, 163, 164);
@@ -588,6 +592,11 @@ end
 
 wingTipTE = geomPlanformPoint(Geom, 40);
 wingCenterTE = geomPlanformPoint(Geom, 41);
+pcsTipTE = geomPlanformPoint(Geom, 117);
+pcsInnerTE = geomPlanformPoint(Geom, 118);
+vtTipTE = geomPlanformPoint(Geom, 165);
+vtInnerTE = geomPlanformPoint(Geom, 166);
+VT_z = Main(25, 8);
 if wingActive
     if ~(anglesParallel(wingTrailingAngle, wingLeadingAngle, STEALTH_TOL) || teNormalHitsCenterline(wingTipTE, wingCenterTE))
         [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Wing trailing edge %.1f° is not parallel to the leading edge and its normal does not reach the fuselage centerline (+/- %.1f°).\n', wingTrailingAngle, STEALTH_TOL);
@@ -600,7 +609,7 @@ end
 
 if pcsActive && ~isnan(pcsDihedral) && pcsDihedral > 5
     [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the surface remains within the fuselage average height (+/- %.1f°).\n', pcsTipTE, pcsInnerTE, isWithinFuselageHeight(PCS_z, fuse_z_center, fuse_z_height));
 end
 
 if strakeActive
@@ -615,7 +624,7 @@ elseif isnan(vtTilt)
     stealthFailures = stealthFailures + 1;
 elseif vtTilt < 85
     [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, vtLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the tail remains within the fuselage average height (+/- %.1f°).\n', vtTipTE, vtInnerTE, isWithinFuselageHeight(VT_z, fuse_z_center, fuse_z_height));
 end
 
 stealthDeduction = min(5, stealthFailures); % up to 5-point hit for stealth issues
@@ -903,6 +912,7 @@ end
 % Constraint curve compliance (8 pts)
 constraintCurveFailures = 0;
 failedCurves = {};
+curveDiagnostics = strings(0,1);
 curveSuffixFew = '';
 curveSuffixMany = ' Consider seeking EI; multiple constraints remain unmet.';
 
@@ -928,6 +938,7 @@ try
             if ~passes
                 constraintCurveFailures = constraintCurveFailures + 1;
                 failedCurves{end+1} = columnLabels{idx}; %#ok<AGROW>
+                curveDiagnostics(end+1,1) = sprintf('Constraint curve %s: T/W=%.1f below required %.1f at W/S=%.1f', columnLabels{idx}, round(TW_design,1), round(estimatedTWvalue,1), round(WS_design,1)); %#ok<AGROW>
             end
         end
     end
@@ -944,6 +955,10 @@ catch ME
     logText = logf(logText, 'Could not perform constraint curve check due to error: %s\n', ME.message);
     constraintCurveFailures = 0;
     failedCurves = {};
+end
+
+for idx = 1:numel(curveDiagnostics)
+    logText = logf(logText, '%s\n', curveDiagnostics(idx));
 end
 
 if constraintCurveFailures == 1
@@ -1004,8 +1019,8 @@ if cnb <= 0.002
     logText = logf(logText, 'Cnb must be > 0.002 (P10 = %.6f)\n', cnb);
     stabilityErrors = stabilityErrors + 1;
 end
-if ~(rat >= -1 && rat <= -0.3)
-    logText = logf(logText, 'Cnb/Clb ratio must be between -1 and -0.3 (Q10 = %.3f)\n', rat);
+if ~(rat >= 0.3 && rat <= 1)
+    logText = logf(logText, 'Cnb/Clb ratio magnitude must be between 0.3 and 1.0 (Q10 = %.3f)\n', rat);
     stabilityErrors = stabilityErrors + 1;
 end
 
@@ -1278,7 +1293,7 @@ sheets.Main   = safeReadMatrix(filename, 'Main',   {'S3','T3','U3','V3','W3','X3
     'D18','D23','D52','F52'});
 sheets.Consts = safeReadMatrix(filename, 'Consts', {'K22','K23','K24','K26','K27','K28','K29','K32','AO42','AQ41','K33'});
 sheets.Gear   = safeReadMatrix(filename, 'Gear',   {'J20','L20','L21','M20','M21','N20','N21'});
-sheets.Geom   = safeReadMatrix(filename, 'Geom',   {'C8','C10','M152','K15','L155','L38'});
+sheets.Geom   = safeReadMatrix(filename, 'Geom',   {'C8','C10','M152','K15','L155','L38','L40','L41','N44','L117','L118','N121'});
 
 % Constants is off by three rows. Row 22 of the Consts tab comes in as
 % row 19 in matlab Consts variable. Adding three rows of NaN to the top
@@ -1355,6 +1370,40 @@ if any(isnan([p1, p2]))
     angle = NaN;
     return;
 end
+
+function angle = computeWingTrailingPlanformAngleDeg(Geom)
+xA = Geom(40, 12);
+xB = Geom(41, 12);
+halfSpan = Geom(44, 14);
+if any(isnan([xA, xB, halfSpan]))
+    angle = NaN;
+    return;
+end
+dx = abs(xA - xB);
+dy = abs(halfSpan);
+if dx == 0 && dy == 0
+    angle = 0;
+else
+    angle = atan2d(dx, dy);
+end
+end
+
+function angle = computePcsTrailingPlanformAngleDeg(Geom)
+xA = Geom(117, 12);
+xB = Geom(118, 12);
+halfSpan = Geom(121, 14);
+if any(isnan([xA, xB, halfSpan]))
+    angle = NaN;
+    return;
+end
+dx = abs(xA - xB);
+dy = abs(halfSpan);
+if dx == 0 && dy == 0
+    angle = 0;
+else
+    angle = atan2d(dx, dy);
+end
+end
 dx = abs(p2(1) - p1(1));
 dy = abs(p2(2) - p1(2));
 if dx == 0 && dy == 0
@@ -1418,6 +1467,24 @@ elseif ~anglesParallel(angle, wingAngle, tol)
     [logText, headerLogged] = logStealth(logText, headerLogged, template, angle, wingAngle, tol);
     failures = failures + 1;
 end
+end
+
+function [logText, failures, headerLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, failures, headerLogged, angle, wingAngle, tol, template, tipPoint, innerPoint, withinFuselageHeight)
+if isnan(angle) || isnan(wingAngle)
+    [logText, headerLogged] = logStealth(logText, headerLogged, 'Unable to verify stealth shaping due to missing geometry data\n');
+    failures = failures + 1;
+elseif ~(anglesParallel(angle, wingAngle, tol) || (withinFuselageHeight && teNormalHitsCenterline(tipPoint, innerPoint)))
+    [logText, headerLogged] = logStealth(logText, headerLogged, template, angle, wingAngle, tol);
+    failures = failures + 1;
+end
+end
+
+function tf = isWithinFuselageHeight(componentZ, fuselageCenterZ, fuselageHeight)
+if any(isnan([componentZ, fuselageCenterZ, fuselageHeight]))
+    tf = false;
+    return;
+end
+tf = componentZ >= (fuselageCenterZ - fuselageHeight/2) && componentZ <= (fuselageCenterZ + fuselageHeight/2);
 end
 
 function [logText, headerLogged] = logStealth(logText, headerLogged, fmt, varargin)

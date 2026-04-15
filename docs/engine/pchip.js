@@ -68,11 +68,24 @@ export function pchip(xList, yList, xQuery) {
     }
   }
 
+  const evalSegment = (idx, xVal) => {
+    const t = (xVal - x[idx]) / h[idx];
+    const t2 = t * t;
+    const t3 = t2 * t;
+
+    const h00 = 2 * t3 - 3 * t2 + 1;
+    const h10 = t3 - 2 * t2 + t;
+    const h01 = -2 * t3 + 3 * t2;
+    const h11 = t3 - t2;
+
+    return h00 * y[idx] + h10 * h[idx] * m[idx] + h01 * y[idx + 1] + h11 * h[idx] * m[idx + 1];
+  };
+
   if (xQuery <= x[0]) {
-    return y[0] + m[0] * (xQuery - x[0]);
+    return evalSegment(0, xQuery);
   }
   if (xQuery >= x[n - 1]) {
-    return y[n - 1] + m[n - 1] * (xQuery - x[n - 1]);
+    return evalSegment(n - 2, xQuery);
   }
 
   let idx = 0;
@@ -80,14 +93,5 @@ export function pchip(xList, yList, xQuery) {
     idx += 1;
   }
 
-  const t = (xQuery - x[idx]) / h[idx];
-  const t2 = t * t;
-  const t3 = t2 * t;
-
-  const h00 = 2 * t3 - 3 * t2 + 1;
-  const h10 = t3 - 2 * t2 + t;
-  const h01 = -2 * t3 + 3 * t2;
-  const h11 = t3 - t2;
-
-  return h00 * y[idx] + h10 * h[idx] * m[idx] + h01 * y[idx + 1] + h11 * h[idx] * m[idx + 1];
+  return evalSegment(idx, xQuery);
 }
