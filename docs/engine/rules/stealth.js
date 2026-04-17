@@ -8,6 +8,7 @@ const PCS_DIHEDRAL_THRESHOLD = 5; // degrees
 const VT_TILT_THRESHOLD = 85; // degrees
 const CORNER_REFLECTOR_TARGET = 45; // degrees
 const CORNER_REFLECTOR_TOL = 5; // degrees
+const CORNER_REFLECTOR_EDGE_TOL = 0.1; // degrees
 const EPS = 1e-6;
 
 const normalizeAngle = (angle) => {
@@ -79,13 +80,12 @@ export function runStealthChecks(workbook) {
   const wingTipTE = getPlanformPoint(geom, 40);
   const wingCenterTE = getPlanformPoint(geom, 41);
   const wingTrailingAngle = computeWingTrailingPlanformAngle(geom);
-  const wingDihedral = asNumber(getCell(main, "B27"));
+  const wingDihedral = asNumber(getCell(main, "B26"));
 
   const pcsLeadingAngle = computeEdgeAngle(geom, 115, 116);
   const pcsTipTE = getPlanformPoint(geom, 117);
   const pcsInnerTE = getPlanformPoint(geom, 118);
   const pcsTrailingAngle = computePcsTrailingPlanformAngle(geom);
-  const pcsTilt = asNumber(getCell(main, "C27"));
   const pcsDihedral = asNumber(getCell(main, "C26"));
   const pcsZ = asNumber(getCell(main, "C25"));
 
@@ -110,7 +110,7 @@ export function runStealthChecks(workbook) {
     if (!isActive || !Number.isFinite(angle)) {
       return;
     }
-    if (Math.abs(angle - CORNER_REFLECTOR_TARGET) <= CORNER_REFLECTOR_TOL) {
+    if (Math.abs(angle - CORNER_REFLECTOR_TARGET) < CORNER_REFLECTOR_TOL - CORNER_REFLECTOR_EDGE_TOL) {
       recordFailure(format(template, angle, CORNER_REFLECTOR_TOL, CORNER_REFLECTOR_TOL));
     }
   };
@@ -120,7 +120,7 @@ export function runStealthChecks(workbook) {
   }
 
   checkCornerReflector(wingDihedral, wingActive, STRINGS.stealth.wingCornerReflector);
-  checkCornerReflector(pcsTilt, pcsActive, STRINGS.stealth.pcsCornerReflector);
+  checkCornerReflector(pcsDihedral, pcsActive, STRINGS.stealth.pcsCornerReflector);
   checkCornerReflector(vtTilt, vtActive, STRINGS.stealth.vtCornerReflector);
 
   const wingShielded =
@@ -145,6 +145,24 @@ export function runStealthChecks(workbook) {
     componentZ >= fuseZCenter - fuseZHeight / 2 &&
     componentZ <= fuseZCenter + fuseZHeight / 2
   );
+
+  const isSurfaceWithinFuselageHeight = (componentZ, dihedralAngle, tipPoint, innerPoint) => {
+    if (
+      !Number.isFinite(componentZ) ||
+      !Number.isFinite(dihedralAngle) ||
+      !tipPoint.every(Number.isFinite) ||
+      !innerPoint.every(Number.isFinite) ||
+      !Number.isFinite(fuseZCenter) ||
+      !Number.isFinite(fuseZHeight)
+    ) {
+      return false;
+    }
+    const spanOffset = Math.abs(tipPoint[1] - innerPoint[1]);
+    const tipZ = componentZ + spanOffset * Math.tan((dihedralAngle * Math.PI) / 180);
+    const lower = fuseZCenter - fuseZHeight / 2;
+    const upper = fuseZCenter + fuseZHeight / 2;
+    return componentZ >= lower && componentZ <= upper && tipZ >= lower && tipZ <= upper;
+  };
 
   const checkTrailingPair = (angle, template, tipPoint, innerPoint, allowCenterlineShielding) => {
     if (!Number.isFinite(angle) || !Number.isFinite(wingLeadingAngle)) {
@@ -187,7 +205,7 @@ export function runStealthChecks(workbook) {
       STRINGS.stealth.vtTrailingParallel,
       vtTipTE,
       vtInnerTE,
-      isWithinFuselageHeight(vtZ),
+      isSurfaceWithinFuselageHeight(vtZ, vtTilt, vtTipTE, vtInnerTE),
     );
   }
 

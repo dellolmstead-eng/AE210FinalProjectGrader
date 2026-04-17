@@ -20,6 +20,7 @@ const TOL = {
   mach: 1e-2,
   time: 1e-2,
   dist: 1e-3,
+  fuel: 5e-2,
 };
 
 const BETA_DEFAULT = 0.87620980519917;
@@ -660,7 +661,10 @@ function checkFuelVolume(main) {
   const volume_remaining = getNumber(main, "Q23");
   let fuelPass = true;
   let volumePass = true;
-  if (!Number.isFinite(fuel_available) || !Number.isFinite(fuel_required) || fuel_available + TOL.eq < fuel_required) {
+  if (!Number.isFinite(fuel_available) || !Number.isFinite(fuel_required)) {
+    fb.push("Fuel check could not be evaluated because O18 or X40 is not numeric.");
+    fuelPass = false;
+  } else if (fuel_available + TOL.fuel < fuel_required) {
     fb.push(`Fuel available (${roundToTenth(fuel_available)}) is less than required (${roundToTenth(fuel_required)}); check reserves.`);
     fuelPass = false;
   }

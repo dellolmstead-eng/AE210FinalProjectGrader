@@ -99,9 +99,9 @@ export const STRINGS = {
     wingTrailing: "Wing trailing edge %.1f° is not parallel to the leading edge and its normal does not reach the fuselage centerline (+/- %.1f°).",
     missingGeom: "Unable to verify stealth shaping due to missing geometry data.",
     wingCornerReflector:
-      "Main!B27 wing dihedral angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.",
+      "Main!B26 wing dihedral angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.",
     pcsCornerReflector:
-      "Main!C27 pitch control surface tilt/dihedral angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.",
+      "Main!C26 pitch control surface dihedral angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.",
     vtCornerReflector:
       "Main!H27 vertical tail tilt angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.",
     pcsLeadingParallel: "Pitch control surface leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).",
