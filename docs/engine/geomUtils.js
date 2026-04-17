@@ -19,9 +19,13 @@ export function getPlanformPoint(geom, row, { absoluteY = true } = {}) {
   const leftY = asNumber(getCell(geom, buildRef(LEFT_Y_COLUMN, row)));
   const rightY = asNumber(getCell(geom, buildRef(RIGHT_Y_COLUMN, row)));
 
-  let y = Number.isFinite(rightY) ? rightY : leftY;
-  if (!Number.isFinite(y)) {
-    y = 0;
+  let y = 0;
+  if (Number.isFinite(leftY) && Number.isFinite(rightY)) {
+    y = Math.max(Math.abs(leftY), Math.abs(rightY));
+  } else if (Number.isFinite(leftY)) {
+    y = leftY;
+  } else if (Number.isFinite(rightY)) {
+    y = rightY;
   }
 
   return {

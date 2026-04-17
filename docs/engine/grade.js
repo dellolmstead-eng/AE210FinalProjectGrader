@@ -258,8 +258,12 @@ function checkControlAttachment(main, geom) {
   const VT_WING_FRACTION = 0.8;
 
   const fuselage_end = getNumber(main, "B32");
+  const pcsArea = getNumber(main, "C18");
+  const vtArea = getNumber(main, "H18");
+  const strakeArea = getNumber(main, "D18");
   const PCS_x = getNumber(main, "C23");
   const PCS_root = getNumber(geom, "C8");
+  if (Number.isFinite(pcsArea) && pcsArea >= 1) {
   if (!Number.isFinite(fuselage_end) || !Number.isFinite(PCS_x) || !Number.isFinite(PCS_root)) {
     fb.push("Unable to verify PCS placement due to missing geometry data");
     failures += 1;
@@ -267,9 +271,11 @@ function checkControlAttachment(main, geom) {
     fb.push("PCS X-location too far aft. Must overlap at least 25% of root chord.");
     failures += 1;
   }
+  }
 
   const VT_x = getNumber(main, "H23");
   const VT_root = getNumber(geom, "C10");
+  if (Number.isFinite(vtArea) && vtArea >= 1) {
   if (!Number.isFinite(fuselage_end) || !Number.isFinite(VT_x) || !Number.isFinite(VT_root)) {
     fb.push("Unable to verify vertical tail placement due to missing geometry data");
     failures += 1;
@@ -277,10 +283,12 @@ function checkControlAttachment(main, geom) {
     fb.push("VT X-location too far aft. Must overlap at least 25% of root chord.");
     failures += 1;
   }
+  }
 
   const PCS_z = getNumber(main, "C25");
   const fuse_z_center = getNumber(main, "D52");
   const fuse_z_height = getNumber(main, "F52");
+  if (Number.isFinite(pcsArea) && pcsArea >= 1) {
   if (!Number.isFinite(PCS_z) || !Number.isFinite(fuse_z_center) || !Number.isFinite(fuse_z_height)) {
     fb.push("Unable to verify PCS vertical placement due to missing geometry data");
     failures += 1;
@@ -288,10 +296,12 @@ function checkControlAttachment(main, geom) {
     fb.push("PCS Z-location outside fuselage vertical bounds.");
     failures += 1;
   }
+  }
 
   const VT_y = getNumber(main, "H24");
   const fuse_width = getNumber(main, "E52");
   let vtMountedOffFuselage = false;
+  if (Number.isFinite(vtArea) && vtArea >= 1) {
   if (!Number.isFinite(VT_y) || !Number.isFinite(fuse_width)) {
     fb.push("Unable to verify vertical tail lateral placement due to missing geometry data");
     failures += 1;
@@ -299,8 +309,9 @@ function checkControlAttachment(main, geom) {
     vtMountedOffFuselage = true;
     fb.push("Vertical tail mounted off the fuselage; ensure structural support at the wing.");
   }
+  }
 
-  if (getNumber(main, "D18") > 1) {
+  if (Number.isFinite(strakeArea) && strakeArea >= 1) {
     const sweep = getNumber(geom, "K15");
     const y = getNumber(geom, "M152");
     const strake = getNumber(geom, "L155");
@@ -318,7 +329,12 @@ function checkControlAttachment(main, geom) {
   }
 
   const component_positions = main?.[22]?.slice(1, 8).map(asNumber) || [];
-  if (component_positions.some((v) => Number.isFinite(v) && v >= fuselage_end)) {
+  const component_areas = main?.[17]?.slice(1, 8).map(asNumber) || [];
+  const active_positions = component_positions.filter((_, idx) => Number.isFinite(component_areas[idx]) && component_areas[idx] >= 1);
+  if (active_positions.length > 0 && !Number.isFinite(fuselage_end)) {
+    fb.push("Unable to verify component X-location due to missing fuselage length");
+    failures += 1;
+  } else if (active_positions.some((v) => Number.isFinite(v) && v >= fuselage_end)) {
       fb.push(`One or more components X-location extend beyond the fuselage end (B32 = ${Number.isFinite(fuselage_end) ? fuselage_end.toFixed(2) : roundToTenth(fuselage_end)})`);
     failures += 1;
   }

@@ -150,14 +150,16 @@ export function runStealthChecks(workbook) {
     if (
       !Number.isFinite(componentZ) ||
       !Number.isFinite(dihedralAngle) ||
-      !tipPoint.every(Number.isFinite) ||
-      !innerPoint.every(Number.isFinite) ||
+      !Number.isFinite(tipPoint.x) ||
+      !Number.isFinite(tipPoint.y) ||
+      !Number.isFinite(innerPoint.x) ||
+      !Number.isFinite(innerPoint.y) ||
       !Number.isFinite(fuseZCenter) ||
       !Number.isFinite(fuseZHeight)
     ) {
       return false;
     }
-    const spanOffset = Math.abs(tipPoint[1] - innerPoint[1]);
+    const spanOffset = Math.abs(tipPoint.y - innerPoint.y);
     const tipZ = componentZ + spanOffset * Math.tan((dihedralAngle * Math.PI) / 180);
     const lower = fuseZCenter - fuseZHeight / 2;
     const upper = fuseZCenter + fuseZHeight / 2;
@@ -185,7 +187,7 @@ export function runStealthChecks(workbook) {
       STRINGS.stealth.pcsTrailingParallel,
       pcsTipTE,
       pcsInnerTE,
-      isWithinFuselageHeight(pcsZ),
+      isSurfaceWithinFuselageHeight(pcsZ, pcsDihedral, pcsTipTE, pcsInnerTE),
     );
   }
 

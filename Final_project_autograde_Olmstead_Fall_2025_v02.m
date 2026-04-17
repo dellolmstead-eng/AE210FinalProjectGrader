@@ -4,7 +4,7 @@
 
 %--------------------------------------------------------------------------
 % AE210 Final Project Autograder Script â€“ Fall 2025
-% Version: v3.1
+% Version: v3.1.1
 %
 % Description:
 % This script automates grading for the AE210 Final Project by processing Jet11 Excel files (*.xlsm). It evaluates 
@@ -409,8 +409,12 @@ VT_WING_FRACTION = 0.8;
 
 fuselage_length = Main(32, 2);
 fuselage_end = fuselage_length;
+PCS_area = Main(18, 3);
+VT_area = Main(18, 8);
+strake_area = Main(18, 4);
 PCS_x = Main(23, 3);
 PCS_root_chord = Geom(8, 3);
+if PCS_area >= 1
 if any(isnan([fuselage_end, PCS_x, PCS_root_chord]))
     logText = logf(logText, 'Unable to verify PCS placement due to missing geometry data\n');
     controlFailures = controlFailures + 1;
@@ -418,9 +422,11 @@ elseif PCS_x > (fuselage_end - 0.25 * PCS_root_chord)
     logText = logf(logText, 'PCS X-location too far aft. Must overlap at least 25%% of root chord.\n');
     controlFailures = controlFailures + 1;
 end
+end
 
 VT_x = Main(23, 8);
 VT_root_chord = Geom(10, 3);
+if VT_area >= 1
 if any(isnan([fuselage_end, VT_x, VT_root_chord]))
     logText = logf(logText, 'Unable to verify vertical tail placement due to missing geometry data\n');
     controlFailures = controlFailures + 1;
@@ -428,10 +434,12 @@ elseif VT_x > (fuselage_end - 0.25 * VT_root_chord)
     logText = logf(logText, 'VT X-location too far aft. Must overlap at least 25%% of root chord.\n');
     controlFailures = controlFailures + 1;
 end
+end
 
 PCS_z = Main(25, 3);
 fuse_z_center = Main(52, 4);
 fuse_z_height = Main(52, 6);
+if PCS_area >= 1
 if any(isnan([PCS_z, fuse_z_center, fuse_z_height]))
     logText = logf(logText, 'Unable to verify PCS vertical placement due to missing geometry data\n');
     controlFailures = controlFailures + 1;
@@ -439,10 +447,12 @@ elseif PCS_z < (fuse_z_center - fuse_z_height/2) || PCS_z > (fuse_z_center + fus
     logText = logf(logText, 'PCS Z-location outside fuselage vertical bounds.\n');
     controlFailures = controlFailures + 1;
 end
+end
 
 VT_y = Main(24, 8);
 fuse_width = Main(52, 5);
 vtMountedOffFuselage = false;
+if VT_area >= 1
 if any(isnan([VT_y, fuse_width]))
     logText = logf(logText, 'Unable to verify vertical tail lateral placement due to missing geometry data\n');
     controlFailures = controlFailures + 1;
@@ -450,8 +460,9 @@ elseif abs(VT_y) > fuse_width/2 + VALUE_TOL
     vtMountedOffFuselage = true;
     logText = logf(logText, 'Vertical tail mounted off the fuselage; ensure structural support at the wing.\n');
 end
+end
 
-if Main(18, 4) > 1
+if strake_area >= 1
     sweep = Geom(15, 11);
     y = Geom(152, 13);
     strake = Geom(155, 12);
@@ -469,9 +480,16 @@ if Main(18, 4) > 1
 end
 
 component_positions = Main(23, 2:8);
-if any(component_positions >= fuselage_end)
-    logText = logf(logText, 'One or more components X-location extend beyond the fuselage end (B32 = %.2f)\n', fuselage_end);
-    controlFailures = controlFailures + 1;
+component_areas = Main(18, 2:8);
+active_components = component_positions(component_areas >= 1);
+if ~isempty(active_components)
+    if isnan(fuselage_end)
+        logText = logf(logText, 'Unable to verify component X-location due to missing fuselage length\n');
+        controlFailures = controlFailures + 1;
+    elseif any(active_components >= fuselage_end)
+        logText = logf(logText, 'One or more components X-location extend beyond the fuselage end (B32 = %.2f)\n', fuselage_end);
+        controlFailures = controlFailures + 1;
+    end
 end
 
 if vtMountedOffFuselage
@@ -632,7 +650,7 @@ end
 
 if pcsActive && ~isnan(pcsDihedral) && pcsDihedral > 5
     [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the surface remains within the fuselage average height (+/- %.1f°).\n', pcsTipTE, pcsInnerTE, isWithinFuselageHeight(PCS_z, fuse_z_center, fuse_z_height));
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the surface remains within the fuselage average height (+/- %.1f°).\n', pcsTipTE, pcsInnerTE, isSurfaceWithinFuselageHeight(PCS_z, pcsDihedral, pcsTipTE, pcsInnerTE, fuse_z_center, fuse_z_height));
 end
 
 if strakeActive
