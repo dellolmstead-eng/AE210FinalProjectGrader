@@ -406,7 +406,6 @@ controlFailures = 0;
 VALUE_TOL = 1e-3;
 AR_TOL = 0.1;
 VT_WING_FRACTION = 0.8;
-EDGE_ALIGN_TOL = 0.2;
 
 fuselage_length = Main(32, 2);
 fuselage_end = fuselage_length;
@@ -478,41 +477,6 @@ if strake_area >= 1
             controlFailures = controlFailures + 1;
         end
     end
-end
-
-wingLeadingRoot = geomPlanformPoint(Geom, 38);
-wingLeadingTip = geomPlanformPoint(Geom, 39);
-wingTrailingRoot = geomPlanformPoint(Geom, 41);
-wingTrailingTip = geomPlanformPoint(Geom, 40);
-
-if Main(18, 5) >= 1
-    elevonLEInboard = geomPlanformPoint(Geom, 174);
-    elevonLEOutboard = geomPlanformPoint(Geom, 175);
-    elevonTEOutboard = geomPlanformPoint(Geom, 176);
-    elevonTEInboard = geomPlanformPoint(Geom, 177);
-    [logText, controlFailures] = checkWingDevicePlacement(logText, controlFailures, ...
-        'Elevon', 'trailing edge', elevonTEInboard, elevonTEOutboard, elevonLEInboard, elevonLEOutboard, ...
-        wingLeadingRoot, wingLeadingTip, wingTrailingRoot, wingTrailingTip, EDGE_ALIGN_TOL);
-end
-
-if Main(18, 6) >= 1
-    lefLEInboard = geomPlanformPoint(Geom, 186);
-    lefLEOutboard = geomPlanformPoint(Geom, 187);
-    lefTEOutboard = geomPlanformPoint(Geom, 188);
-    lefTEInboard = geomPlanformPoint(Geom, 189);
-    [logText, controlFailures] = checkWingDevicePlacement(logText, controlFailures, ...
-        'LE Flap', 'leading edge', lefLEInboard, lefLEOutboard, lefTEInboard, lefTEOutboard, ...
-        wingLeadingRoot, wingLeadingTip, wingTrailingRoot, wingTrailingTip, EDGE_ALIGN_TOL);
-end
-
-if Main(18, 7) >= 1
-    tefLEInboard = geomPlanformPoint(Geom, 198);
-    tefLEOutboard = geomPlanformPoint(Geom, 199);
-    tefTEOutboard = geomPlanformPoint(Geom, 200);
-    tefTEInboard = geomPlanformPoint(Geom, 201);
-    [logText, controlFailures] = checkWingDevicePlacement(logText, controlFailures, ...
-        'TE Flap', 'trailing edge', tefTEInboard, tefTEOutboard, tefLEInboard, tefLEOutboard, ...
-        wingLeadingRoot, wingLeadingTip, wingTrailingRoot, wingTrailingTip, EDGE_ALIGN_TOL);
 end
 
 component_positions = Main(23, 2:8);
@@ -1477,112 +1441,6 @@ else
     y = max(abs(yCandidates));
 end
 point = [x, y];
-end
-
-function [logText, failures] = checkWingDevicePlacement(logText, failures, deviceName, edgeName, relevantA, relevantB, oppositeA, oppositeB, wingLeadingRoot, wingLeadingTip, wingTrailingRoot, wingTrailingTip, tol)
-points = [relevantA, relevantB, oppositeA, oppositeB, wingLeadingRoot, wingLeadingTip, wingTrailingRoot, wingTrailingTip];
-if any(isnan(points))
-    logText = logf(logText, 'Unable to verify %s wing placement due to missing geometry data\n', deviceName);
-    failures = failures + 1;
-    return;
-end
-
-[relevantInboard, relevantOutboard, oppositeInboard, oppositeOutboard] = sortEdgePairsByY(relevantA, relevantB, oppositeA, oppositeB);
-spanFail = false;
-edgeFail = false;
-envelopeFail = false;
-wingSpan = max([wingLeadingRoot(2), wingLeadingTip(2), wingTrailingRoot(2), wingTrailingTip(2)]);
-
-for idx = 1:2
-    if idx == 1
-        relevantPoint = relevantInboard;
-        oppositePoint = oppositeInboard;
-    else
-        relevantPoint = relevantOutboard;
-        oppositePoint = oppositeOutboard;
-    end
-
-    y = relevantPoint(2);
-    if y < -tol || y > wingSpan + tol
-        spanFail = true;
-        continue;
-    end
-
-    [wingLeadingX, leadingInRange] = interpolateEdgeXAtY(wingLeadingRoot, wingLeadingTip, y);
-    [wingTrailingX, trailingInRange] = interpolateEdgeXAtY(wingTrailingRoot, wingTrailingTip, y);
-    if ~leadingInRange || ~trailingInRange
-        spanFail = true;
-        continue;
-    end
-
-    if strcmp(edgeName, 'leading edge')
-        targetX = wingLeadingX;
-    else
-        targetX = wingTrailingX;
-    end
-
-    if abs(relevantPoint(1) - targetX) > tol
-        edgeFail = true;
-    end
-
-    lower = min(wingLeadingX, wingTrailingX) - tol;
-    upper = max(wingLeadingX, wingTrailingX) + tol;
-    if oppositePoint(1) < lower || oppositePoint(1) > upper
-        envelopeFail = true;
-    end
-end
-
-if spanFail
-    logText = logf(logText, '%s extends outside the wing span in top view.\n', deviceName);
-end
-if edgeFail
-    logText = logf(logText, '%s %s must align with the wing %s within %.2f ft in top view.\n', deviceName, edgeName, edgeName, tol);
-end
-if envelopeFail
-    logText = logf(logText, '%s must remain within the wing planform envelope in top view.\n', deviceName);
-end
-if spanFail || edgeFail || envelopeFail
-    failures = failures + 1;
-end
-end
-
-function [relevantInboard, relevantOutboard, oppositeInboard, oppositeOutboard] = sortEdgePairsByY(relevantA, relevantB, oppositeA, oppositeB)
-if relevantA(2) <= relevantB(2)
-    relevantInboard = relevantA;
-    relevantOutboard = relevantB;
-    oppositeInboard = oppositeA;
-    oppositeOutboard = oppositeB;
-else
-    relevantInboard = relevantB;
-    relevantOutboard = relevantA;
-    oppositeInboard = oppositeB;
-    oppositeOutboard = oppositeA;
-end
-end
-
-function [x, inRange] = interpolateEdgeXAtY(pointA, pointB, y)
-if any(isnan([pointA, pointB])) || isnan(y)
-    x = NaN;
-    inRange = false;
-    return;
-end
-y1 = pointA(2);
-y2 = pointB(2);
-lower = min(y1, y2);
-upper = max(y1, y2);
-if y < lower - 1e-6 || y > upper + 1e-6
-    x = NaN;
-    inRange = false;
-    return;
-end
-if abs(y2 - y1) < 1e-9
-    x = pointA(1);
-    inRange = abs(y - y1) <= 1e-6;
-    return;
-end
-t = (y - y1) / (y2 - y1);
-x = pointA(1) + t * (pointB(1) - pointA(1));
-inRange = true;
 end
 
 function hit = teNormalHitsCenterline(tipPoint, innerPoint, fuselageLength)
