@@ -582,7 +582,7 @@ end
 if controlFailures > 0
     deduction = min(2, controlFailures);
     pt = pt - deduction;
-    logText = logf(logText, '-%d pts Control surface placement issues\n', deduction);
+    logText = logf(logText, '-%d pts Geometry/attachment issues detected; see notes above.\n', deduction);
 end
 
 % Stealth shaping 
