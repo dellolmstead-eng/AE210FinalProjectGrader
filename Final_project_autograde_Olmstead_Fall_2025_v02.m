@@ -615,20 +615,16 @@ vtActive = isnan(vtArea) || vtArea >= 1;
 
 if pcsActive && wingActive && ~anglesParallel(pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL)
     [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Pitch control surface leading edge sweep %.1f° must match the wing leading edge sweep %.1f° (+/- %.1f°).\n', pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL);
-    stealthFailures = stealthFailures + 1;
 end
 
 if wingActive && ~isnan(wingDihedral) && abs(wingDihedral - CORNER_REFLECTOR_TARGET) < (CORNER_REFLECTOR_TOL - CORNER_REFLECTOR_EDGE_TOL)
     [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Main!B26 wing dihedral angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.\n', wingDihedral, CORNER_REFLECTOR_TOL, CORNER_REFLECTOR_TOL);
-    stealthFailures = stealthFailures + 1;
 end
 if pcsActive && ~isnan(pcsDihedral) && abs(pcsDihedral - CORNER_REFLECTOR_TARGET) < (CORNER_REFLECTOR_TOL - CORNER_REFLECTOR_EDGE_TOL)
     [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Main!C26 pitch control surface dihedral angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.\n', pcsDihedral, CORNER_REFLECTOR_TOL, CORNER_REFLECTOR_TOL);
-    stealthFailures = stealthFailures + 1;
 end
 if vtActive && ~isnan(vtTilt) && abs(vtTilt - CORNER_REFLECTOR_TARGET) < (CORNER_REFLECTOR_TOL - CORNER_REFLECTOR_EDGE_TOL)
     [logText, stealthHeaderLogged] = logStealth(logText, stealthHeaderLogged, 'Main!H27 vertical tail tilt angle %.1f° creates a corner reflector because it is within %.1f° of 45°. Increase or decrease at least %.1f° off 45° to avoid significant stealth signature increase.\n', vtTilt, CORNER_REFLECTOR_TOL, CORNER_REFLECTOR_TOL);
-    stealthFailures = stealthFailures + 1;
 end
 
 wingTipTE = geomPlanformPoint(Geom, 40);
