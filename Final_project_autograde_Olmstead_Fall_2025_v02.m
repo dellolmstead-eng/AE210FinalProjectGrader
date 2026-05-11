@@ -270,6 +270,8 @@ geomNaN = isnan(geomBlock);
 skipCells = [...
     7 1;  % B24 intentionally blank
     7 2;  % C24 intentionally blank
+    5 4;  % E22 intentionally blank
+    5 6;  % G22 intentionally blank
     10 3; % D27 intentionally blank
     10 4; % E27 intentionally blank
     10 5; % F27 intentionally blank
