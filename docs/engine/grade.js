@@ -26,6 +26,7 @@ const TOL = {
 const BETA_DEFAULT = 0.87620980519917;
 const BASE_TOTAL = 45;
 const OBJECTIVE_TOTAL = 11;
+const NON_VIABLE_CAP = BASE_TOTAL / 2;
 
 const roundToTenth = (value) => (Number.isFinite(value) ? Math.round(value * 10) / 10 : 0);
 const ternary = (cond, a, b) => (cond ? a : b);
@@ -181,7 +182,7 @@ function checkMissionProfile(main, radius, betaExpected) {
     if (radius >= 410 - TOL.dist) {
       rangePass = true;
       rangeObjectivePass = true;
-      feedback.push(`Mission radius meets objective (410 nm) [+1 bonus]: ${Number(radius).toFixed(1)}`);
+      feedback.push(`Mission radius meets objective (410 nm): ${Number(radius).toFixed(1)}`);
     } else if (radius >= 375 - TOL.dist) {
       rangePass = true;
     } else {
@@ -643,7 +644,7 @@ function checkConstraints(main, consts, betaExpected) {
   if (Math.abs(asNumber(main?.[11]?.[21]) - 0.03) > 5e-4) add(`Takeoff: mu must be 0.03 (found ${roundToTenth(asNumber(main?.[11]?.[21]))})`);
   if (Math.abs(asNumber(main?.[11]?.[22]) - 100) > TOL.eq) add(`Takeoff: AB must be 100% (found ${roundToTenth(asNumber(main?.[11]?.[22]))}%)`);
   if (!Number.isFinite(takeoffDist) || takeoffDist > 3000 + TOL.dist) add(`Takeoff distance exceeds threshold (3000 ft): ${takeoffDist?.toFixed?.(0) ?? roundToTenth(takeoffDist)}`);
-  else if (takeoffDist <= 2500 + TOL.dist) fb.push(`Takeoff distance meets objective (<= 2500 ft) [+1 bonus]: ${takeoffDist.toFixed(0)}`);
+  else if (takeoffDist <= 2500 + TOL.dist) fb.push(`Takeoff distance meets objective (<= 2500 ft): ${takeoffDist.toFixed(0)}`);
   if (Math.abs(asNumber(main?.[11]?.[18]) - 1) > TOL.wto) add(`Takeoff: W/WTO must be 1.000 within ±${TOL.wto.toFixed(3)} (found ${roundToTenth(asNumber(main?.[11]?.[18]))})`);
   if (!Number.isFinite(takeoffCdx) || ![0, 0.035].some((allowed) => Math.abs(takeoffCdx - allowed) <= TOL.eq)) add(`Takeoff: CDx must be 0 or 0.035 (found ${roundToTenth(takeoffCdx)})`);
 
@@ -653,7 +654,7 @@ function checkConstraints(main, consts, betaExpected) {
   if (Math.abs(asNumber(main?.[12]?.[21]) - 0.5) > TOL.eq) add(`Landing: mu must be 0.5 (found ${roundToTenth(asNumber(main?.[12]?.[21]))})`);
   if (Math.abs(asNumber(main?.[12]?.[22])) > TOL.eq) add(`Landing: AB must be 0% (found ${roundToTenth(asNumber(main?.[12]?.[22]))}%)`);
   if (!Number.isFinite(landingDist) || landingDist > 5000 + TOL.dist) add(`Landing distance exceeds threshold (5000 ft): ${landingDist?.toFixed?.(0) ?? roundToTenth(landingDist)}`);
-  else if (landingDist <= 3500 + TOL.dist) fb.push(`Landing distance meets objective (<= 3500 ft) [+1 bonus]: ${landingDist.toFixed(0)}`);
+  else if (landingDist <= 3500 + TOL.dist) fb.push(`Landing distance meets objective (<= 3500 ft): ${landingDist.toFixed(0)}`);
   if (Math.abs(asNumber(main?.[12]?.[18]) - 1) > TOL.wto) add(`Landing: W/WTO must be 1.000 within ±${TOL.wto.toFixed(3)} (found ${roundToTenth(asNumber(main?.[12]?.[18]))})`);
   if (!Number.isFinite(landingCdx) || ![0, 0.045].some((allowed) => Math.abs(landingCdx - allowed) <= TOL.eq)) add(`Landing: CDx must be 0 or 0.045 (found ${roundToTenth(landingCdx)})`);
 
@@ -743,27 +744,27 @@ function checkConstraints(main, consts, betaExpected) {
   };
 
   if (objectiveSet.maxMach) {
-    if (curveStatus.maxMach && !rowErrorsMap.maxMach) fb.push("Constraint MaxMach set above threshold and satisfied. [+1 bonus]");
+    if (curveStatus.maxMach && !rowErrorsMap.maxMach) fb.push("Constraint MaxMach set above threshold and satisfied.");
     else if (!curveStatus.maxMach) fb.push("Constraint MaxMach set at or above objective. Design fails to meet this constraint; consider lowering it toward the threshold value.");
   }
   if (objectiveSet.supercruise) {
-    if (curveStatus.supercruise && !rowErrorsMap.supercruise) fb.push("Constraint CruiseMach set above threshold and satisfied. [+1 bonus]");
+    if (curveStatus.supercruise && !rowErrorsMap.supercruise) fb.push("Constraint CruiseMach set above threshold and satisfied.");
     else if (!curveStatus.supercruise) fb.push("Constraint CruiseMach set at or above objective. Design fails to meet this constraint; consider lowering it toward the threshold value.");
   }
   if (objectiveSet.gHigh) {
-    if (curveStatus.gHigh && !rowErrorsMap.gHigh) fb.push("Constraint Cmbt Turn1 set above threshold and satisfied. [+1 bonus]");
+    if (curveStatus.gHigh && !rowErrorsMap.gHigh) fb.push("Constraint Cmbt Turn1 set above threshold and satisfied.");
     else if (!curveStatus.gHigh) fb.push("Constraint Cmbt Turn1 set at or above objective. Design fails to meet this constraint; consider lowering it toward the threshold value.");
   }
   if (objectiveSet.gLow) {
-    if (curveStatus.gLow && !rowErrorsMap.gLow) fb.push("Constraint Cmbt Turn2 set above threshold and satisfied. [+1 bonus]");
+    if (curveStatus.gLow && !rowErrorsMap.gLow) fb.push("Constraint Cmbt Turn2 set above threshold and satisfied.");
     else if (!curveStatus.gLow) fb.push("Constraint Cmbt Turn2 set at or above objective. Design fails to meet this constraint; consider lowering it toward the threshold value.");
   }
   if (objectiveSet.psHigh) {
-    if (curveStatus.psHigh && !rowErrorsMap.psHigh) fb.push("Constraint Ps1 set above threshold and satisfied. [+1 bonus]");
+    if (curveStatus.psHigh && !rowErrorsMap.psHigh) fb.push("Constraint Ps1 set above threshold and satisfied.");
     else if (!curveStatus.psHigh) fb.push("Constraint Ps1 set at or above objective. Design fails to meet this constraint; consider lowering it toward the threshold value.");
   }
   if (objectiveSet.psLow) {
-    if (curveStatus.psLow && !rowErrorsMap.psLow) fb.push("Constraint Ps2 set above threshold and satisfied. [+1 bonus]");
+    if (curveStatus.psLow && !rowErrorsMap.psLow) fb.push("Constraint Ps2 set above threshold and satisfied.");
     else if (!curveStatus.psLow) fb.push("Constraint Ps2 set at or above objective. Design fails to meet this constraint; consider lowering it toward the threshold value.");
   }
 
@@ -783,7 +784,7 @@ function checkPayload(main) {
     payloadPass = true;
     if (Number.isFinite(aim9) && aim9 >= 2 - TOL.eq) {
       payloadObjectivePass = true;
-      fb.push(`Payload meets objective [+1 bonus]: ${aim120.toFixed(0)} AIM-120s + ${aim9.toFixed(0)} AIM-9s`);
+      fb.push(`Payload meets objective: ${aim120.toFixed(0)} AIM-120s + ${aim9.toFixed(0)} AIM-9s`);
     }
   }
   return { payloadPass, payloadObjectivePass, feedback: fb };
@@ -809,7 +810,7 @@ function checkStability(main) {
     fb.push(`Cnb must be > 0.002 (P10 = ${cnb?.toFixed?.(6) ?? "NaN"})`);
     failures += 1;
   }
-  if (!(rat >= 0.3 && rat <= 1)) {
+  if (!(Math.abs(rat) >= 0.3 && Math.abs(rat) <= 1)) {
     fb.push(`Cnb/Clb ratio magnitude must be between 0.3 and 1.0 (Q10 = ${Number.isFinite(rat) ? rat.toFixed(3) : roundToTenth(rat)})`);
     failures += 1;
   }
@@ -857,7 +858,7 @@ function checkCost(main) {
       }
       if (cost <= 100 + TOL.eq) {
         costObjectivePass = true;
-        fb.push(`Recurring cost meets objective (<= $100M) [+1 bonus]: $${cost.toFixed(1)}M`);
+        fb.push(`Recurring cost meets objective (<= $100M): $${cost.toFixed(1)}M`);
       }
     }
   } else if (Math.abs(numaircraft - 800) < 1e-3) {
@@ -871,7 +872,7 @@ function checkCost(main) {
       }
       if (cost <= 61 + TOL.eq) {
         costObjectivePass = true;
-        fb.push(`Recurring cost meets objective (<= $61M) [+1 bonus]: $${cost.toFixed(1)}M`);
+        fb.push(`Recurring cost meets objective (<= $61M): $${cost.toFixed(1)}M`);
       }
     }
   } else {
@@ -883,6 +884,7 @@ function checkCost(main) {
 function checkGear(gear) {
   const fb = [];
   let failures = 0;
+  let takeoffSpeedPass = true;
   const g90 = asNumber(gear?.[19]?.[9]); // J20
   if (!Number.isFinite(g90) || g90 < 80 - TOL.eq || g90 > 90.5 + TOL.eq) {
     failures += 1;
@@ -908,28 +910,33 @@ function checkGear(gear) {
   if (!Number.isFinite(rotationSpeed)) {
     failures += 1;
     fb.push("Takeoff rotation speed (N20) missing; N20 must be less than N21.");
+    takeoffSpeedPass = false;
   } else {
     if (!Number.isFinite(rotationRef)) {
       failures += 1;
       fb.push("Takeoff speed margin failed: N21 missing; N20 must be below N21.");
+      takeoffSpeedPass = false;
     } else {
       if (rotationSpeed >= 200 - TOL.eq) {
         failures += 1;
         fb.push(`Violates takeoff rotation speed: ${fmt1(rotationSpeed)} kts (must be < 200 kts)`);
+        takeoffSpeedPass = false;
       }
       if (rotationSpeed >= rotationRef) {
         failures += 1;
         fb.push(`Takeoff speed margin failed: N20 must be less than N21 (N20 = ${rotationSpeed.toFixed(2)}, N21 = ${rotationRef.toFixed(2)})`);
+        takeoffSpeedPass = false;
       }
       if (rotationRef > 200 + TOL.eq) {
         failures += 1;
         fb.push(`Takeoff speed too high: N21 = ${fmt1(rotationRef)} kts (must be <= 200 kts)`);
+        takeoffSpeedPass = false;
       }
     }
   }
 
   if (failures > 0) fb.push(`-${Math.min(4, failures)} pts Landing gear geometry outside limits`);
-  return { pass: failures === 0, feedback: fb, failures };
+  return { pass: failures === 0, feedback: fb, failures, takeoffSpeedPass };
 }
 
 export function gradeWorkbook(workbook) {
@@ -1051,6 +1058,7 @@ export function gradeWorkbook(workbook) {
   if (Math.abs(numaircraft - 187) < 1e-3) costBonus = roundToTenth(linearBonusInv(cost, 115, 100));
   else if (Math.abs(numaircraft - 800) < 1e-3) costBonus = roundToTenth(linearBonusInv(cost, 75, 61));
 
+  const bonusEligible = constraints.tableErrors === 0 && constraints.curveFailures === 0;
   let objectiveScore =
     radiusBonus +
     payloadBonus +
@@ -1064,21 +1072,35 @@ export function gradeWorkbook(workbook) {
     gLowBonus +
     costBonus;
 
-  if (radiusBonus > 0 && radiusBonus < 1) feedback.push(`Mission radius bonus [+${radiusBonus.toFixed(1)} bonus]: ${radius.toFixed(1)} nm`);
-  if (payloadBonus > 0 && payloadBonus < 1) feedback.push(`Payload bonus [+${payloadBonus.toFixed(1)} bonus]: ${aim120.toFixed(0)} AIM-120s + ${aim9.toFixed(0)} AIM-9s`);
-  if (takeoffBonus > 0 && takeoffBonus < 1) feedback.push(`Takeoff distance bonus [+${takeoffBonus.toFixed(1)} bonus]: ${takeoff_dist.toFixed(0)} ft`);
-  if (landingBonus > 0 && landingBonus < 1) feedback.push(`Landing distance bonus [+${landingBonus.toFixed(1)} bonus]: ${landing_dist.toFixed(0)} ft`);
-  if (maxMachBonus > 0 && maxMachBonus < 1) feedback.push(`Max Mach bonus [+${maxMachBonus.toFixed(1)} bonus]: Mach ${matlabFixed(asNumber(main?.[2]?.[20]), 2)}`);
-  if (superBonus > 0 && superBonus < 1) feedback.push(`Supercruise Mach bonus [+${superBonus.toFixed(1)} bonus]: Mach ${matlabFixed(asNumber(main?.[3]?.[20]), 2)}`);
-  if (psHighBonus > 0 && psHighBonus < 1) feedback.push(`Ps @30k ft bonus [+${psHighBonus.toFixed(1)} bonus]: ${asNumber(main?.[7]?.[23]).toFixed(0)} ft/s`);
-  if (psLowBonus > 0 && psLowBonus < 1) feedback.push(`Ps @10k ft bonus [+${psLowBonus.toFixed(1)} bonus]: ${asNumber(main?.[8]?.[23]).toFixed(0)} ft/s`);
-  if (gHighBonus > 0 && gHighBonus < 1) feedback.push(`Combat turn (30k ft) bonus [+${gHighBonus.toFixed(1)} bonus]: ${asNumber(main?.[5]?.[21]).toFixed(2)} g`);
-  if (gLowBonus > 0 && gLowBonus < 1) feedback.push(`Combat turn (10k ft) bonus [+${gLowBonus.toFixed(1)} bonus]: ${asNumber(main?.[6]?.[21]).toFixed(2)} g`);
-  if (costBonus > 0 && costBonus < 1) feedback.push(`Recurring cost bonus [+${costBonus.toFixed(1)} bonus]: ${numaircraft.toFixed(0)} aircraft, $${cost.toFixed(1)}M`);
+  if (!bonusEligible) {
+    objectiveScore = 0;
+    feedback.push("Bonus points unavailable because one or more constraints miss threshold values or the design is below a constraint curve.");
+  } else {
+    if (radiusBonus > 0) feedback.push(`Mission radius bonus [+${radiusBonus.toFixed(1)} bonus]: ${radius.toFixed(1)} nm`);
+    if (payloadBonus > 0) feedback.push(`Payload bonus [+${payloadBonus.toFixed(1)} bonus]: ${aim120.toFixed(0)} AIM-120s + ${aim9.toFixed(0)} AIM-9s`);
+    if (takeoffBonus > 0) feedback.push(`Takeoff distance bonus [+${takeoffBonus.toFixed(1)} bonus]: ${takeoff_dist.toFixed(0)} ft`);
+    if (landingBonus > 0) feedback.push(`Landing distance bonus [+${landingBonus.toFixed(1)} bonus]: ${landing_dist.toFixed(0)} ft`);
+    if (maxMachBonus > 0) feedback.push(`Max Mach bonus [+${maxMachBonus.toFixed(1)} bonus]: Mach ${matlabFixed(asNumber(main?.[2]?.[20]), 2)}`);
+    if (superBonus > 0) feedback.push(`Supercruise Mach bonus [+${superBonus.toFixed(1)} bonus]: Mach ${matlabFixed(asNumber(main?.[3]?.[20]), 2)}`);
+    if (psHighBonus > 0) feedback.push(`Ps @30k ft bonus [+${psHighBonus.toFixed(1)} bonus]: ${asNumber(main?.[7]?.[23]).toFixed(0)} ft/s`);
+    if (psLowBonus > 0) feedback.push(`Ps @10k ft bonus [+${psLowBonus.toFixed(1)} bonus]: ${asNumber(main?.[8]?.[23]).toFixed(0)} ft/s`);
+    if (gHighBonus > 0) feedback.push(`Combat turn (30k ft) bonus [+${gHighBonus.toFixed(1)} bonus]: ${asNumber(main?.[5]?.[21]).toFixed(2)} g`);
+    if (gLowBonus > 0) feedback.push(`Combat turn (10k ft) bonus [+${gLowBonus.toFixed(1)} bonus]: ${asNumber(main?.[6]?.[21]).toFixed(2)} g`);
+    if (costBonus > 0) feedback.push(`Recurring cost bonus [+${costBonus.toFixed(1)} bonus]: ${numaircraft.toFixed(0)} aircraft, $${cost.toFixed(1)}M`);
+  }
 
   const thresholdScore = roundToTenth(pt);
   objectiveScore = roundToTenth(objectiveScore);
   pt = roundToTenth(thresholdScore + objectiveScore);
+
+  const nonViableReasons = [];
+  if (!fuelVolume.fuelPass) nonViableReasons.push("fuel check failed");
+  if (!fuelVolume.volumePass) nonViableReasons.push("insufficient volume remaining");
+  if (!gearResult.takeoffSpeedPass) nonViableReasons.push("takeoff speed check failed");
+  if (nonViableReasons.length > 0) {
+    pt = roundToTenth(Math.min(pt, NON_VIABLE_CAP));
+    feedback.push(`Final score capped at ${NON_VIABLE_CAP.toFixed(1)} out of ${BASE_TOTAL} because the aircraft is non-viable (${nonViableReasons.join(", ")}).`);
+  }
 
   const scoreSummary = [
     `Jet11 base score: ${formatScore(thresholdScore)} out of ${BASE_TOTAL}`,

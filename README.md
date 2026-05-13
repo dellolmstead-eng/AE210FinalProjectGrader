@@ -14,6 +14,6 @@ Use `docs/test_runner.html` with expected outputs to compare against MATLAB logs
 
 ## Notes
 
-- Supporting documents/templates (Excel templates, RFP, etc.) live in `CommonAssets/` and are symlinked in.
+- Supporting documents and workbook templates are tracked directly in this repo.
 - The `docs/` folder here is a local copy (no longer shared), so edits apply only to the Final Project web grader.
-- Archival prep: verify symlinks to `CommonAssets/*` remain valid; keep this folder and `CommonAssets` together when moving/zip’ing; note `docs` is local.
+- Archival prep: this repo is self-contained; keep `docs/` with the repo when moving or zip'ing it.

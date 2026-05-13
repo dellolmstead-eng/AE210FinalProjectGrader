@@ -1,5 +1,5 @@
 export const RULES = {
-  versionLabel: "Final Project Grader 2025 v3.1",
+  versionLabel: "FinalAircraft Grader 2025 v3.1",
   matlabVersion: "Final_project_autograde_Olmstead_Fall_2025_v02",
   scoringReference:
     "Final Project web scoring must match Final_project_autograde_Olmstead_Fall_2025_v02.m exactly. Do not copy Final Exam values or point maps into this repo.",

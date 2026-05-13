@@ -155,7 +155,7 @@ logFilePath = fullfile(folderAnalyzed, ['textout_', timestamp, '.txt']);
 finalout = fopen(logFilePath,'w');
 
 % Log file header
-fprintf(finalout, 'Final Project Autograder Log\n');
+fprintf(finalout, 'FinalAircraft Autograder Log\n');
 fprintf(finalout, 'Script Name: %s.m\n', mfilename);
 fprintf(finalout, 'Run Date: %s\n', string(datetime('now', 'Format', 'yyyy-MM-dd HH:mm:ss')));
 fprintf(finalout, 'Analyzed Folder: %s\n', folderAnalyzed);
@@ -229,6 +229,7 @@ distTol = 1e-3;
 fuelTol = 5e-2;
 bonusFullEps = 1e-6;
 bonusMinDisplay = 1e-2;
+NON_VIABLE_CAP = 22.5;
 
 % Pre-initialize key inputs, then populate from the workbook
 fuel_available = NaN;
@@ -270,6 +271,8 @@ geomNaN = isnan(geomBlock);
 skipCells = [...
     7 1;  % B24 intentionally blank
     7 2;  % C24 intentionally blank
+    5 4;  % E22 intentionally blank
+    5 6;  % G22 intentionally blank
     10 3; % D27 intentionally blank
     10 4; % E27 intentionally blank
     10 5; % F27 intentionally blank
@@ -382,7 +385,7 @@ if ~isnan(radius)
         logText = logf(logText, 'Mission radius below threshold (375 nm): %.1f\n', radius);
         missionErrors = missionErrors + 1;
     elseif radius >= 410 - distTol
-        logText = logf(logText, 'Mission radius meets objective (410 nm) [+1 bonus]: %.1f\n', radius);
+        logText = logf(logText, 'Mission radius meets objective (410 nm): %.1f\n', radius);
     end
 end
 
@@ -686,7 +689,7 @@ end
 
 if pcsActive && ~isnan(pcsDihedral) && pcsDihedral > 5
     [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, pcsLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the surface remains within the fuselage average height (+/- %.1f°).\n', pcsTipTE, pcsInnerTE, isSurfaceWithinFuselageHeight(PCS_z, pcsDihedral, pcsTipTE, pcsInnerTE, fuse_z_center, fuse_z_height));
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, pcsTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Pitch control surface trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the surface remains within the fuselage average height (+/- %.1f°).\n', pcsTipTE, pcsInnerTE, isSurfaceWithinFuselageHeight(PCS_z, pcsDihedral, pcsTipTE, pcsInnerTE, fuse_z_center, fuse_z_height), fuselage_length);
 end
 
 if strakeActive
@@ -701,7 +704,7 @@ elseif isnan(vtTilt)
     stealthFailures = stealthFailures + 1;
 elseif vtTilt < 85
     [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngle(logText, stealthFailures, stealthHeaderLogged, vtLeadingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail leading edge sweep %.1f° must be parallel to the wing leading edge %.1f° (+/- %.1f°).\n');
-    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the tail remains within the fuselage average height (+/- %.1f°).\n', vtTipTE, vtInnerTE, isSurfaceWithinFuselageHeight(VT_z, vtTilt, vtTipTE, vtInnerTE, fuse_z_center, fuse_z_height));
+    [logText, stealthFailures, stealthHeaderLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, stealthFailures, stealthHeaderLogged, vtTrailingAngle, wingLeadingAngle, STEALTH_TOL, 'Vertical tail trailing edge sweep %.1f° must be parallel to the wing leading edge %.1f° or its normal must reach the fuselage centerline when the tail remains within the fuselage average height (+/- %.1f°).\n', vtTipTE, vtInnerTE, isSurfaceWithinFuselageHeight(VT_z, vtTilt, vtTipTE, vtInnerTE, fuse_z_center, fuse_z_height), fuselage_length);
 end
 
 stealthDeduction = min(5, stealthFailures); % up to 5-point hit for stealth issues
@@ -935,7 +938,7 @@ if takeoff_dist > 3000 + distTol
     logText = logf(logText, 'Takeoff distance exceeds threshold (3000 ft): %.0f\n', takeoff_dist);
     constraintErrors = constraintErrors + 1;
 elseif ~isnan(takeoff_dist) && takeoff_dist <= 2500 + distTol
-    logText = logf(logText, 'Takeoff distance meets objective (<= 2500 ft) [+1 bonus]: %.0f\n', takeoff_dist);
+    logText = logf(logText, 'Takeoff distance meets objective (<= 2500 ft): %.0f\n', takeoff_dist);
 end
 if abs(Main(12,19) - 1.0) > tol
     logText = logf(logText, 'Takeoff: W/WTO must be 1.000 (full fuel) within +/- %.3f; found %.3f\n', tol, Main(12,19));
@@ -968,7 +971,7 @@ if landing_dist > 5000 + distTol
     logText = logf(logText, 'Landing distance exceeds threshold (5000 ft): %.0f\n', landing_dist);
     constraintErrors = constraintErrors + 1;
 elseif ~isnan(landing_dist) && landing_dist <= 3500 + distTol
-    logText = logf(logText, 'Landing distance meets objective (<= 3500 ft) [+1 bonus]: %.0f\n', landing_dist);
+    logText = logf(logText, 'Landing distance meets objective (<= 3500 ft): %.0f\n', landing_dist);
 end
 if abs(Main(13,19) - 1.0) > tol
     logText = logf(logText, 'Landing: W/WTO must be 1.000 (loaded worst case) within +/- %.3f; found %.3f\n', tol, Main(13,19));
@@ -1059,7 +1062,7 @@ for idx = 1:numel(objectiveFields)
     end
     label = labelNames.(key);
     if isfield(curveStatus, key) && curveStatus.(key) && ~rowErrorsMap.(key)
-        logText = logf(logText, 'Constraint %s set above threshold and satisfied. [+1 bonus]\n', label);
+        logText = logf(logText, 'Constraint %s set above threshold and satisfied.\n', label);
     elseif isfield(curveStatus, key) && ~curveStatus.(key)
         logText = logf(logText, 'Constraint %s set at or above objective. Design fails to meet this constraint; consider lowering it toward the threshold value.\n', label);
     end
@@ -1072,7 +1075,7 @@ if isnan(aim120) || aim120 < 8 - tol
     pt = pt - 4;
     logText = logf(logText, '-4 pts Payload must include at least 8 AIM-120Ds (found %.0f)\n', count);
 elseif ~isnan(aim9) && aim9 >= 2 - tol
-    logText = logf(logText, 'Payload meets objective [+1 bonus]: %.0f AIM-120s + %.0f AIM-9s\n', aim120, aim9);
+    logText = logf(logText, 'Payload meets objective: %.0f AIM-120s + %.0f AIM-9s\n', aim120, aim9);
 end
 % Stability (3 pts)
 SM = Main(10, 13);
@@ -1096,7 +1099,7 @@ if cnb <= 0.002
     logText = logf(logText, 'Cnb must be > 0.002 (P10 = %.6f)\n', cnb);
     stabilityErrors = stabilityErrors + 1;
 end
-if ~(rat >= 0.3 && rat <= 1)
+if ~(abs(rat) >= 0.3 && abs(rat) <= 1)
     logText = logf(logText, 'Cnb/Clb ratio magnitude must be between 0.3 and 1.0 (Q10 = %.3f)\n', rat);
     stabilityErrors = stabilityErrors + 1;
 end
@@ -1108,17 +1111,22 @@ if stabilityDeduction > 0
 end
 
 % Fuel (2 pts) and volume (2 pts)
+fuelFail = false;
+volumeFail = false;
 if isnan(fuel_available) || isnan(fuel_required)
     pt = pt - 2;
     logText = logf(logText, '-2 pts Fuel check could not be evaluated because O18 or X40 is not numeric\n');
+    fuelFail = true;
 elseif fuel_available + fuelTol < fuel_required
     pt = pt - 2;
     logText = logf(logText, '-2 pts Fuel available (%.1f) is less than required (%.1f)\n', fuel_available, fuel_required);
+    fuelFail = true;
 end
 
 if isnan(volume_remaining) || volume_remaining <= 0
     pt = pt - 2;
     logText = logf(logText, '-2 pts Volume remaining must be positive (Q23 = %.2f)\n', volume_remaining);
+    volumeFail = true;
 end
 
 % Recurring cost (5 pts)
@@ -1131,7 +1139,7 @@ if abs(numaircraft - 187) < 1e-3
         costDeduction = 5;
         logText = logf(logText, '-5 pts Recurring cost exceeds threshold ($115M): $%.1fM\n', cost);
     elseif cost <= 100 + tol
-        logText = logf(logText, 'Recurring cost meets objective (<= $100M) [+1 bonus]: $%.1fM\n', cost);
+        logText = logf(logText, 'Recurring cost meets objective (<= $100M): $%.1fM\n', cost);
     end
 elseif abs(numaircraft - 800) < 1e-3
     if isnan(cost)
@@ -1141,7 +1149,7 @@ elseif abs(numaircraft - 800) < 1e-3
         costDeduction = 5;
         logText = logf(logText, '-5 pts Recurring cost exceeds threshold ($75M): $%.1fM\n', cost);
     elseif cost <= 61 + tol
-        logText = logf(logText, 'Recurring cost meets objective (<= $61M) [+1 bonus]: $%.1fM\n', cost);
+        logText = logf(logText, 'Recurring cost meets objective (<= $61M): $%.1fM\n', cost);
     end
 else
     costDeduction = 5;
@@ -1154,6 +1162,7 @@ end
 
 % Landing gear geometry (4 pts)
 gearFailures = 0;
+takeoffSpeedFail = false;
 
 g90 = Gear(20, 10);
 if isnan(g90) || g90 < 80 - tol || g90 > 90.5 + tol
@@ -1180,23 +1189,28 @@ takeoffSpeed = Gear(21, 14);
 if isnan(rotationSpeed)
     gearFailures = gearFailures + 1;
     logText = logf(logText, 'Violates takeoff rotation speed: value missing (must be < 200 kts and less than N21)\n');
+    takeoffSpeedFail = true;
 else
     if rotationSpeed >= 200 - tol
         gearFailures = gearFailures + 1;
         logText = logf(logText, 'Violates takeoff rotation speed: %.1f kts (must be < 200 kts)\n', rotationSpeed);
+        takeoffSpeedFail = true;
     end
     if ~isnan(takeoffSpeed)
         if rotationSpeed >= takeoffSpeed
             gearFailures = gearFailures + 1;
             logText = logf(logText, 'Takeoff speed margin failed: N20 must be less than N21 (N20 = %.2f, N21 = %.2f)\n', rotationSpeed, takeoffSpeed);
+            takeoffSpeedFail = true;
         end
         if takeoffSpeed > 200 + tol
             gearFailures = gearFailures + 1;
             logText = logf(logText, 'Takeoff speed too high: N21 = %.1f kts (must be <= 200 kts)\n', takeoffSpeed);
+            takeoffSpeedFail = true;
         end
     else
         gearFailures = gearFailures + 1;
         logText = logf(logText, 'Takeoff speed reference missing (N21); cannot verify N20 margin.\n');
+        takeoffSpeedFail = true;
     end
 end
 
@@ -1209,137 +1223,133 @@ end
 baseScore = max(0, pt);
 pt = baseScore;
 bonusPoints = 0;
+bonusEligible = constraintDeduction == 0 && constraintCurveFailures == 0;
 
-if ~isnan(radius)
+if bonusEligible && ~isnan(radius)
     radiusBonusRaw = linearBonus(radius, 375, 410);
     radiusBonus = roundToTenth(radiusBonusRaw);
     if radiusBonus > 0
         bonusPoints = bonusPoints + radiusBonus;
-        if radiusBonus < 1 - bonusFullEps && radiusBonus >= bonusMinDisplay
-            logText = logf(logText, 'Mission radius bonus [+%.1f bonus]: %.1f nm\n', radiusBonus, radius);
-        end
+        logText = logf(logText, 'Mission radius bonus [+%.1f bonus]: %.1f nm\n', radiusBonus, radius);
     end
 end
-if ~isnan(aim120) && ~isnan(aim9)
+if bonusEligible && ~isnan(aim120) && ~isnan(aim9)
     payloadBonusRaw = double(aim120 >= 8 - tol && aim9 >= 2 - tol);
     payloadBonus = roundToTenth(payloadBonusRaw);
     if payloadBonus > 0
         bonusPoints = bonusPoints + payloadBonus;
-        if payloadBonus < 1 - bonusFullEps && payloadBonus >= bonusMinDisplay
-            logText = logf(logText, 'Payload bonus [+%.1f bonus]: %.0f AIM-120s + %.0f AIM-9s\n', payloadBonus, aim120, aim9);
-        end
+        logText = logf(logText, 'Payload bonus [+%.1f bonus]: %.0f AIM-120s + %.0f AIM-9s\n', payloadBonus, aim120, aim9);
     end
 end
-if ~isnan(takeoff_dist)
+if bonusEligible && ~isnan(takeoff_dist)
     takeoffBonusRaw = linearBonusInv(takeoff_dist, 3000, 2500);
     takeoffBonus = roundToTenth(takeoffBonusRaw);
     if takeoffBonus > 0
         bonusPoints = bonusPoints + takeoffBonus;
-        if takeoffBonus < 1 - bonusFullEps && takeoffBonus >= bonusMinDisplay
-            logText = logf(logText, 'Takeoff distance bonus [+%.1f bonus]: %.0f ft\n', takeoffBonus, takeoff_dist);
-        end
+        logText = logf(logText, 'Takeoff distance bonus [+%.1f bonus]: %.0f ft\n', takeoffBonus, takeoff_dist);
     end
 end
-if ~isnan(landing_dist)
+if bonusEligible && ~isnan(landing_dist)
     landingBonusRaw = linearBonusInv(landing_dist, 5000, 3500);
     landingBonus = roundToTenth(landingBonusRaw);
     if landingBonus > 0
         bonusPoints = bonusPoints + landingBonus;
-        if landingBonus < 1 - bonusFullEps && landingBonus >= bonusMinDisplay
-            logText = logf(logText, 'Landing distance bonus [+%.1f bonus]: %.0f ft\n', landingBonus, landing_dist);
-        end
+        logText = logf(logText, 'Landing distance bonus [+%.1f bonus]: %.0f ft\n', landingBonus, landing_dist);
     end
 end
 maxMachValue = Main(3,21);
-if ~isnan(maxMachValue)
+if bonusEligible && ~isnan(maxMachValue)
     maxMachBonusRaw = linearBonus(maxMachValue, 2.0, 2.2);
     maxMachBonus = roundToTenth(maxMachBonusRaw);
     if maxMachBonus > 0
         bonusPoints = bonusPoints + maxMachBonus;
-        if maxMachBonus < 1 - bonusFullEps && maxMachBonus >= bonusMinDisplay
-            logText = logf(logText, 'Max Mach bonus [+%.1f bonus]: Mach %.2f\n', maxMachBonus, maxMachValue);
-        end
+        logText = logf(logText, 'Max Mach bonus [+%.1f bonus]: Mach %.2f\n', maxMachBonus, maxMachValue);
     end
 end
 superValue = Main(4,21);
-if ~isnan(superValue)
+if bonusEligible && ~isnan(superValue)
     superBonusRaw = linearBonus(superValue, 1.5, 1.8);
     superBonus = roundToTenth(superBonusRaw);
     if superBonus > 0
         bonusPoints = bonusPoints + superBonus;
-        if superBonus < 1 - bonusFullEps && superBonus >= bonusMinDisplay
-            logText = logf(logText, 'Supercruise Mach bonus [+%.1f bonus]: Mach %.2f\n', superBonus, superValue);
-        end
+        logText = logf(logText, 'Supercruise Mach bonus [+%.1f bonus]: Mach %.2f\n', superBonus, superValue);
     end
 end
 psHighValue = Main(8,24);
-if ~isnan(psHighValue)
+if bonusEligible && ~isnan(psHighValue)
     psHighBonusRaw = linearBonus(psHighValue, 400, 500);
     psHighBonus = roundToTenth(psHighBonusRaw);
     if psHighBonus > 0
         bonusPoints = bonusPoints + psHighBonus;
-        if psHighBonus < 1 - bonusFullEps && psHighBonus >= bonusMinDisplay
-            logText = logf(logText, 'Ps @30k ft bonus [+%.1f bonus]: %.0f ft/s\n', psHighBonus, psHighValue);
-        end
+        logText = logf(logText, 'Ps @30k ft bonus [+%.1f bonus]: %.0f ft/s\n', psHighBonus, psHighValue);
     end
 end
 psLowValue = Main(9,24);
-if ~isnan(psLowValue)
+if bonusEligible && ~isnan(psLowValue)
     psLowBonusRaw = linearBonus(psLowValue, 400, 500);
     psLowBonus = roundToTenth(psLowBonusRaw);
     if psLowBonus > 0
         bonusPoints = bonusPoints + psLowBonus;
-        if psLowBonus < 1 - bonusFullEps && psLowBonus >= bonusMinDisplay
-            logText = logf(logText, 'Ps @10k ft bonus [+%.1f bonus]: %.0f ft/s\n', psLowBonus, psLowValue);
-        end
+        logText = logf(logText, 'Ps @10k ft bonus [+%.1f bonus]: %.0f ft/s\n', psLowBonus, psLowValue);
     end
 end
 gHighValue = Main(6,22);
-if ~isnan(gHighValue)
+if bonusEligible && ~isnan(gHighValue)
     gHighBonusRaw = linearBonus(gHighValue, 3.0, 4.0);
     gHighBonus = roundToTenth(gHighBonusRaw);
     if gHighBonus > 0
         bonusPoints = bonusPoints + gHighBonus;
-        if gHighBonus < 1 - bonusFullEps && gHighBonus >= bonusMinDisplay
-            logText = logf(logText, 'Combat turn (30k ft) bonus [+%.1f bonus]: %.2f g\n', gHighBonus, gHighValue);
-        end
+        logText = logf(logText, 'Combat turn (30k ft) bonus [+%.1f bonus]: %.2f g\n', gHighBonus, gHighValue);
     end
 end
 gLowValue = Main(7,22);
-if ~isnan(gLowValue)
+if bonusEligible && ~isnan(gLowValue)
     gLowBonusRaw = linearBonus(gLowValue, 4.0, 4.5);
     gLowBonus = roundToTenth(gLowBonusRaw);
     if gLowBonus > 0
         bonusPoints = bonusPoints + gLowBonus;
-        if gLowBonus < 1 - bonusFullEps && gLowBonus >= bonusMinDisplay
-            logText = logf(logText, 'Combat turn (10k ft) bonus [+%.1f bonus]: %.2f g\n', gLowBonus, gLowValue);
-        end
+        logText = logf(logText, 'Combat turn (10k ft) bonus [+%.1f bonus]: %.2f g\n', gLowBonus, gLowValue);
     end
 end
-if ~isnan(cost)
+if bonusEligible && ~isnan(cost)
     if abs(numaircraft - 187) < 1e-3
         costBonusRaw = linearBonusInv(cost, 115, 100);
         costBonus = roundToTenth(costBonusRaw);
         if costBonus > 0
             bonusPoints = bonusPoints + costBonus;
-            if costBonus < 1 - bonusFullEps && costBonus >= bonusMinDisplay
-                logText = logf(logText, 'Recurring cost bonus [+%.1f bonus]: %.0f aircraft, $%.1fM\n', costBonus, numaircraft, cost);
-            end
+            logText = logf(logText, 'Recurring cost bonus [+%.1f bonus]: %.0f aircraft, $%.1fM\n', costBonus, numaircraft, cost);
         end
     elseif abs(numaircraft - 800) < 1e-3
         costBonusRaw = linearBonusInv(cost, 75, 61);
         costBonus = roundToTenth(costBonusRaw);
         if costBonus > 0
             bonusPoints = bonusPoints + costBonus;
-            if costBonus < 1 - bonusFullEps && costBonus >= bonusMinDisplay
-                logText = logf(logText, 'Recurring cost bonus [+%.1f bonus]: %.0f aircraft, $%.1fM\n', costBonus, numaircraft, cost);
-            end
+            logText = logf(logText, 'Recurring cost bonus [+%.1f bonus]: %.0f aircraft, $%.1fM\n', costBonus, numaircraft, cost);
         end
     end
 end
 
+if ~bonusEligible
+    logText = logf(logText, 'Bonus points unavailable because one or more constraints miss threshold values or the design is below a constraint curve.\n');
+end
+
 bonusPoints = roundToTenth(bonusPoints);
 pt = roundToTenth(baseScore + bonusPoints);
+
+nonViableReasons = strings(0,1);
+if fuelFail
+    nonViableReasons(end+1,1) = "fuel check failed";
+end
+if volumeFail
+    nonViableReasons(end+1,1) = "insufficient volume remaining";
+end
+if takeoffSpeedFail
+    nonViableReasons(end+1,1) = "takeoff speed check failed";
+end
+if ~isempty(nonViableReasons)
+    pt = roundToTenth(min(pt, NON_VIABLE_CAP));
+    logText = logf(logText, 'Final score capped at %.1f out of 45 because the aircraft is non-viable (%s).\n', NON_VIABLE_CAP, strjoin(nonViableReasons, ', '));
+end
 
 logText = logf(logText, 'Jet11 base score: %d out of 45\n', baseScore);
 logText = logf(logText, 'Bonus points: +%.1f (final score %.1f)\n', bonusPoints, pt);
@@ -1585,6 +1595,17 @@ x = pointA(1) + t * (pointB(1) - pointA(1));
 inRange = true;
 end
 
+function username = extractBlackboardUsername(fname)
+% Blackboard export filenames place the username in the token immediately
+% before "_attempt". Keep this tolerant of dots, dashes, and underscores.
+userTok = regexp(fname, '_([^\s]+?)_attempt(?:_|\.|$)', 'tokens', 'once');
+if ~isempty(userTok)
+    username = userTok{1};
+else
+    username = 'UNKNOWN';
+end
+end
+
 function hit = teNormalHitsCenterline(tipPoint, innerPoint, fuselageLength)
 if any(isnan([tipPoint, innerPoint]))
     hit = false;
@@ -1632,11 +1653,11 @@ elseif ~anglesParallel(angle, wingAngle, tol)
 end
 end
 
-function [logText, failures, headerLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, failures, headerLogged, angle, wingAngle, tol, template, tipPoint, innerPoint, withinFuselageHeight)
+function [logText, failures, headerLogged] = requireParallelAngleOrCenterlineIfWithinFuselageHeight(logText, failures, headerLogged, angle, wingAngle, tol, template, tipPoint, innerPoint, withinFuselageHeight, fuselageLength)
 if isnan(angle) || isnan(wingAngle)
     [logText, headerLogged] = logStealth(logText, headerLogged, 'Unable to verify stealth shaping due to missing geometry data\n');
     failures = failures + 1;
-elseif ~(anglesParallel(angle, wingAngle, tol) || (withinFuselageHeight && teNormalHitsCenterline(tipPoint, innerPoint, fuselage_length)))
+elseif ~(anglesParallel(angle, wingAngle, tol) || (withinFuselageHeight && teNormalHitsCenterline(tipPoint, innerPoint, fuselageLength)))
     [logText, headerLogged] = logStealth(logText, headerLogged, template, angle, wingAngle, tol);
     failures = failures + 1;
 end
@@ -1815,13 +1836,7 @@ uicontrol('Parent', d, ...
             for i = 1:numel(files)
                 fname = files(i).name;
 
-                % Extract username from the canonical segment "_<username>_attempt" (allowing underscores/dots/dashes)
-                userTok = regexp(fname, '_([A-Za-z0-9._-]+)_attempt', 'tokens', 'once');
-                if ~isempty(userTok)
-                    username = userTok{1};
-                else
-                    username = 'UNKNOWN';
-                end
+                username = extractBlackboardUsername(fname);
 
                 % Get score and feedback
                 score = max(0, min(100, roundToTenth(points(i))));
