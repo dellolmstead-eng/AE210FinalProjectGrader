@@ -1058,7 +1058,7 @@ if cnb <= 0.002
     logText = logf(logText, 'Cnb must be > 0.002 (P10 = %.6f)\n', cnb);
     stabilityErrors = stabilityErrors + 1;
 end
-if ~(rat >= 0.3 && rat <= 1)
+if ~(abs(rat) >= 0.3 && abs(rat) <= 1)
     logText = logf(logText, 'Cnb/Clb ratio magnitude must be between 0.3 and 1.0 (Q10 = %.3f)\n', rat);
     stabilityErrors = stabilityErrors + 1;
 end

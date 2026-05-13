@@ -662,7 +662,7 @@ function checkStability(main) {
     fb.push(`Cnb must be > 0.002 (P10 = ${cnb?.toFixed?.(6) ?? "NaN"})`);
     failures += 1;
   }
-  if (!(rat >= 0.3 && rat <= 1)) {
+  if (!(Math.abs(rat) >= 0.3 && Math.abs(rat) <= 1)) {
     fb.push(`Cnb/Clb ratio magnitude must be between 0.3 and 1.0 (Q10 = ${Number.isFinite(rat) ? rat.toFixed(3) : roundToTenth(rat)})`);
     failures += 1;
   }
