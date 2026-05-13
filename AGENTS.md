@@ -7,7 +7,7 @@ Final Aircraft autograder (MATLAB + web grader). This repo is a submodule of AE2
 After committing here, update the submodule pointer in `AutograderSuite/` and push the suite repo.
 
 ## Key Files
-- MATLAB: `Final_project_autograde_Olmstead_Fall_2025_v02.m`
+- MATLAB: `Final_aircraft_autograde_Olmstead_Fall_2025_v02.m`
 - Web grader engine: `docs/engine/`
 - Mission checks: `docs/engine/grade.js`
 
