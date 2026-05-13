@@ -1,11 +1,11 @@
-# AE210 Final Project Web Grader (v3.1.1)
+# AE210 Final Aircraft Web Grader (v3.1.1)
 
-Browser grader for the AE210 Final Project Jet11 workbook. Mirrors the MATLAB final project autograder checks.
+Browser grader for the AE210 Final Aircraft Jet11 workbook. Mirrors the MATLAB Final Aircraft autograder checks.
 
 ## Usage
 
 1. Open `docs/index.html` (or serve the `docs/` folder).
-2. Drop a Final Project Jet11 workbook using the provided course template.
+2. Drop a Final Aircraft Jet11 workbook using the provided course template.
 3. Review score, deductions, and bonus items; everything stays client-side.
 
 ## Parity testing
@@ -15,5 +15,5 @@ Use `docs/test_runner.html` with expected outputs to compare against MATLAB logs
 ## Notes
 
 - Supporting documents and workbook templates are tracked directly in this repo.
-- The `docs/` folder here is a local copy (no longer shared), so edits apply only to the Final Project web grader.
+- The `docs/` folder here is a local copy (no longer shared), so edits apply only to the Final Aircraft web grader.
 - Archival prep: this repo is self-contained; keep `docs/` with the repo when moving or zip'ing it.

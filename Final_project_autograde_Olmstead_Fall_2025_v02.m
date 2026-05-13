@@ -1,13 +1,13 @@
 
-% Final Project Autograder: Grades AE210 Jet11 Excel submissions, logs feedback, and optionally exports Blackboard-compatible scores.
+% Final Aircraft Autograder: Grades AE210 Jet11 Excel submissions, logs feedback, and optionally exports Blackboard-compatible scores.
 
 
 %--------------------------------------------------------------------------
-% AE210 Final Project Autograder Script â€“ Fall 2025
+% AE210 Final Aircraft Autograder Script â€“ Fall 2025
 % Version: v3.1.1
 %
 % Description:
-% This script automates grading for the AE210 Final Project by processing Jet11 Excel files (*.xlsm). It evaluates 
+% This script automates grading for the AE210 Final Aircraft assignment by processing Jet11 Excel files (*.xlsm). It evaluates
 % multiple design criteria, generates detailed feedback, and outputs both a
 % summary log and an optional Blackboard-compatible grade import file.
 % 
@@ -28,7 +28,7 @@
 % Outputs:
 % - Text log file: textout_<timestamp>.txt
 % - Histogram of scores
-% - Optional Blackboard CSV: FinalProject_Blackboard_Offline_<timestamp>.csv
+% - Optional Blackboard CSV: FinalAircraft_Blackboard_Offline_<timestamp>.csv
 %
 % Embedded Functions:
 % - gradeCadet: Grades a single cadet's file and returns score and feedback
@@ -49,10 +49,10 @@ clear; close all; clc;
 
 %% Choose directory and get Excel files
 % fprintf('Executing %s\n',mfilename);
-% I recommend updating the below line to point to your Final Project files. It works
+% I recommend updating the below line to point to your Final Aircraft files. It works
 % as is, but will default to the right place if this is updated.
 
-% folderAnalyzed = uigetdir('C:\Users\dell.olmstead\OneDrive - afacademy.af.edu\Documents 1\01 Classes\AE210 FA24\Design Project\Final Project files');
+% folderAnalyzed = uigetdir('C:\Users\dell.olmstead\OneDrive - afacademy.af.edu\Documents 1\01 Classes\AE210 FA24\Design Project\Final Aircraft files');
 % fprintf('%s\n\n', folderAnalyzed);
 % files = dir(fullfile(folderAnalyzed, '*.xlsm'));
 
@@ -1823,7 +1823,7 @@ uicontrol('Parent', d, ...
         delete(dialogHandle);
         if shouldExport
             %% Create Blackboard Offline Grade CSV (SMART_TEXT format)
-            csvFilename = fullfile(folderAnalyzed, ['FinalProject_Blackboard_Offline_', timestamp, '.csv']);
+            csvFilename = fullfile(folderAnalyzed, ['FinalAircraft_Blackboard_Offline_', timestamp, '.csv']);
             fid = fopen(csvFilename, 'w');
 
             % Assignment title column (update if needed)

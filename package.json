@@ -1,7 +1,7 @@
 {
   "name": "ae210-final-project-webgrader",
   "version": "3.1.1",
-  "description": "Browser grader for the AE210 Final Project Jet11 workbook. Matches the MATLAB Final_project_autograde_Olmstead_Fall_2025_v02 checks.",
+  "description": "Browser grader for the AE210 Final Aircraft Jet11 workbook. Matches the MATLAB Final Aircraft checks.",
   "main": "index.js",
   "directories": {
     "doc": "docs"

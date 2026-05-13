@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## Purpose
-Final Project autograder (MATLAB + web grader). This repo is a submodule of AE210AutograderSuite.
+Final Aircraft autograder (MATLAB + web grader). This repo is a submodule of AE210AutograderSuite.
 
 ## Suite Sync
 After committing here, update the submodule pointer in `AutograderSuite/` and push the suite repo.
