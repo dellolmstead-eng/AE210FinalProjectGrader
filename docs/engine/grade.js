@@ -353,13 +353,14 @@ function checkControlAttachment(main, geom) {
   const strakeArea = getNumber(main, "D18");
   const PCS_x = getNumber(main, "C23");
   const PCS_root = getNumber(geom, "C8");
-  const wingTeX = asNumber(geom?.[40]?.[11]);
+  const wingRootTeX = asNumber(geom?.[40]?.[11]);
+  const attachmentAft = Math.max(fuselage_end, wingRootTeX);
   if (Number.isFinite(pcsArea) && pcsArea >= 1) {
-  if (!Number.isFinite(wingTeX) || !Number.isFinite(PCS_x) || !Number.isFinite(PCS_root)) {
+  if (!Number.isFinite(attachmentAft) || !Number.isFinite(PCS_x) || !Number.isFinite(PCS_root)) {
     fb.push("Unable to verify PCS placement due to missing geometry data");
     failures += 1;
-  } else if (PCS_x > wingTeX - PCS_WING_FRACTION * PCS_root) {
-    fb.push("PCS X-location too far aft. Must overlap the wing trailing edge by at least 25% of root chord.");
+  } else if (PCS_x > attachmentAft - PCS_WING_FRACTION * PCS_root) {
+    fb.push("PCS X-location too far aft. Must overlap the aft-most fuselage/wing-root attachment reference by at least 25% of root chord.");
     failures += 1;
   }
   }
@@ -367,10 +368,10 @@ function checkControlAttachment(main, geom) {
   const VT_x = getNumber(main, "H23");
   const VT_root = getNumber(geom, "C10");
   if (Number.isFinite(vtArea) && vtArea >= 1) {
-  if (!Number.isFinite(fuselage_end) || !Number.isFinite(VT_x) || !Number.isFinite(VT_root)) {
+  if (!Number.isFinite(attachmentAft) || !Number.isFinite(VT_x) || !Number.isFinite(VT_root)) {
     fb.push("Unable to verify vertical tail placement due to missing geometry data");
     failures += 1;
-  } else if (VT_x > fuselage_end - 0.25 * VT_root) {
+  } else if (VT_x > attachmentAft - 0.25 * VT_root) {
     fb.push("VT X-location too far aft. Must overlap at least 25% of root chord.");
     failures += 1;
   }
@@ -400,6 +401,15 @@ function checkControlAttachment(main, geom) {
     vtMountedOffFuselage = true;
     fb.push("Vertical tail mounted off the fuselage; ensure structural support at the wing.");
   }
+  }
+
+  const fuselageDiameter = Math.max(fuse_width, fuse_z_height);
+  if (!Number.isFinite(fuselage_end) || !Number.isFinite(wingRootTeX) || !Number.isFinite(fuselageDiameter)) {
+    fb.push("Unable to verify fuselage aft support at wing root trailing edge due to missing geometry data");
+    failures += 1;
+  } else if (wingRootTeX > fuselage_end && wingRootTeX - fuselage_end + VALUE_TOL >= fuselageDiameter) {
+    fb.push(`Fuselage aft end is ${(wingRootTeX - fuselage_end).toFixed(2)} ft ahead of the wing root trailing edge; it must be less than one fuselage diameter (${fuselageDiameter.toFixed(2)} ft).`);
+    failures += 1;
   }
 
   if (Number.isFinite(strakeArea) && strakeArea >= 1) {

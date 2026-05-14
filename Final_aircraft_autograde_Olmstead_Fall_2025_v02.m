@@ -419,14 +419,14 @@ VT_area = Main(18, 8);
 strake_area = Main(18, 4);
 PCS_x = Main(23, 3);
 PCS_root_chord = Geom(8, 3);
-wingTE = geomPlanformPoint(Geom, 41);
-wingTE_x = wingTE(1);
+wingTrailingRoot = geomPlanformPoint(Geom, 41);
+attachment_aft = max(fuselage_end, wingTrailingRoot(1));
 if PCS_area >= 1
-if any(isnan([wingTE_x, PCS_x, PCS_root_chord]))
+if any(isnan([attachment_aft, PCS_x, PCS_root_chord]))
     logText = logf(logText, 'Unable to verify PCS placement due to missing geometry data\n');
     controlFailures = controlFailures + 1;
-elseif PCS_x > (wingTE_x - PCS_WING_FRACTION * PCS_root_chord)
-    logText = logf(logText, 'PCS X-location too far aft. Must overlap the wing trailing edge by at least 25%% of root chord.\n');
+elseif PCS_x > (attachment_aft - PCS_WING_FRACTION * PCS_root_chord)
+    logText = logf(logText, 'PCS X-location too far aft. Must overlap the aft-most fuselage/wing-root attachment reference by at least 25%% of root chord.\n');
     controlFailures = controlFailures + 1;
 end
 end
@@ -434,10 +434,10 @@ end
 VT_x = Main(23, 8);
 VT_root_chord = Geom(10, 3);
 if VT_area >= 1
-if any(isnan([fuselage_end, VT_x, VT_root_chord]))
+if any(isnan([attachment_aft, VT_x, VT_root_chord]))
     logText = logf(logText, 'Unable to verify vertical tail placement due to missing geometry data\n');
     controlFailures = controlFailures + 1;
-elseif VT_x > (fuselage_end - 0.25 * VT_root_chord)
+elseif VT_x > (attachment_aft - 0.25 * VT_root_chord)
     logText = logf(logText, 'VT X-location too far aft. Must overlap at least 25%% of root chord.\n');
     controlFailures = controlFailures + 1;
 end
@@ -469,6 +469,15 @@ elseif abs(VT_y) > fuse_width/2 + VALUE_TOL
 end
 end
 
+fuselage_diameter = max(fuse_width, fuse_z_height);
+if any(isnan([fuselage_end, wingTrailingRoot(1), fuselage_diameter]))
+    logText = logf(logText, 'Unable to verify fuselage aft support at wing root trailing edge due to missing geometry data\n');
+    controlFailures = controlFailures + 1;
+elseif wingTrailingRoot(1) > fuselage_end && (wingTrailingRoot(1) - fuselage_end) + VALUE_TOL >= fuselage_diameter
+    logText = logf(logText, 'Fuselage aft end is %.2f ft ahead of the wing root trailing edge; it must be less than one fuselage diameter (%.2f ft).\n', wingTrailingRoot(1) - fuselage_end, fuselage_diameter);
+    controlFailures = controlFailures + 1;
+end
+
 if strake_area >= 1
     sweep = Geom(15, 11);
     y = Geom(152, 13);
@@ -488,7 +497,6 @@ end
 
 wingLeadingRoot = geomPlanformPoint(Geom, 38);
 wingLeadingTip = geomPlanformPoint(Geom, 39);
-wingTrailingRoot = geomPlanformPoint(Geom, 41);
 wingTrailingTip = geomPlanformPoint(Geom, 40);
 
 if Main(18, 5) >= 1
