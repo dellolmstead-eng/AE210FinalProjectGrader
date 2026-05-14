@@ -46,7 +46,7 @@ export const STRINGS = {
     objectiveBonus: "Constraint %s set above threshold and satisfied. [+1 bonus]",
   },
   attachment: {
-    pcsX: "PCS X-location too far aft. Must overlap at least 25% of root chord.",
+    pcsX: "PCS X-location too far aft. Must overlap the wing trailing edge by at least 25% of root chord.",
     vtX: "VT X-location too far aft. Must overlap at least 25% of root chord.",
     pcsZ: "PCS Z-location outside fuselage vertical bounds.",
     vtWing: "Vertical tail mounted off the fuselage; ensure structural support at the wing.",
