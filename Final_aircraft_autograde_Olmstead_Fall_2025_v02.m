@@ -628,18 +628,12 @@ else
         logText = logf(logText, 'Engine nacelles protrude %.2f ft past the fuselage end (limit %.2f ft).\n', protrusion, engine_diameter);
         controlFailures = controlFailures + 1;
     end
-    fuselage_aft_limit = fuselage_end - 2 * engine_diameter;
-    if engine_aft + VALUE_TOL < fuselage_aft_limit
-        logText = logf(logText, 'Engine aft end is %.2f ft ahead of the fuselage aft end; limit is %.2f ft (two engine diameters).\n', fuselage_end - engine_aft, 2 * engine_diameter);
-        controlFailures = controlFailures + 1;
-    end
     wing_aft = max(wingTrailingRoot(1), wingTrailingTip(1));
-    if wingTrailingRoot(1) > fuselage_end + VALUE_TOL
-        wing_aft_limit = wing_aft - 2 * engine_diameter;
-        if engine_aft + VALUE_TOL < wing_aft_limit
-            logText = logf(logText, 'Engine aft end is %.2f ft ahead of the aft-most wing trailing edge; limit is %.2f ft (two engine diameters).\n', wing_aft - engine_aft, 2 * engine_diameter);
-            controlFailures = controlFailures + 1;
-        end
+    structure_aft = max(fuselage_end, wing_aft);
+    structure_aft_limit = structure_aft - 2 * engine_diameter;
+    if engine_aft + VALUE_TOL < structure_aft_limit
+        logText = logf(logText, 'Engine aft end is %.2f ft ahead of the aft end of the fuselage/wing; limit is %.2f ft (two engine diameters).\n', structure_aft - engine_aft, 2 * engine_diameter);
+        controlFailures = controlFailures + 1;
     end
 end
 

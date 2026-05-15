@@ -589,13 +589,10 @@ function checkControlAttachment(main, geom) {
       fb.push(`Engine nacelles protrude ${protrusion.toFixed(2)} ft past the fuselage end (limit ${engine_diameter.toFixed(2)} ft).`);
       failures += 1;
     }
-    if (engineAft + VALUE_TOL < fuselage_end - 2 * engine_diameter) {
-      fb.push(`Engine aft end is ${(fuselage_end - engineAft).toFixed(2)} ft ahead of the fuselage aft end; limit is ${(2 * engine_diameter).toFixed(2)} ft (two engine diameters).`);
-      failures += 1;
-    }
     const wingAft = Math.max(wingTrailingRoot[0], wingTrailingTip[0]);
-    if (wingTrailingRoot[0] > fuselage_end + VALUE_TOL && engineAft + VALUE_TOL < wingAft - 2 * engine_diameter) {
-      fb.push(`Engine aft end is ${(wingAft - engineAft).toFixed(2)} ft ahead of the aft-most wing trailing edge; limit is ${(2 * engine_diameter).toFixed(2)} ft (two engine diameters).`);
+    const structureAft = Math.max(fuselage_end, wingAft);
+    if (engineAft + VALUE_TOL < structureAft - 2 * engine_diameter) {
+      fb.push(`Engine aft end is ${(structureAft - engineAft).toFixed(2)} ft ahead of the aft end of the fuselage/wing; limit is ${(2 * engine_diameter).toFixed(2)} ft (two engine diameters).`);
       failures += 1;
     }
   }
